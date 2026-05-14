@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧家庭题库 - 学员端 ✨</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0085D0 0%, #00A8E6 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Logo 区域 */
+        .logo-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .logo-bar img {
+            max-height: 50px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            text-decoration: none;
+        }
+        
+        .user-info {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            border-top: 4px solid #0085D0;
+        }
+        
+        .user-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: linear-gradient(135deg, #0085D0, #00A8E6);
+            border-radius: 10px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .stat-label {
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.9);
+            margin-top: 3px;
+        }
+        
+        .modes {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .mode-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            border-left: 4px solid #0085D0;
+        }
+        
+        .mode-card:active {
+            transform: scale(0.98);
+        }
+        
+        .mode-icon {
+            font-size: 2em;
+            margin-right: 12px;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .mode-info {
+            flex: 1;
+        }
+        
+        .mode-title {
+            font-size: 1em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .mode-desc {
+            color: #666;
+            font-size: 0.75em;
+        }
+        
+        .mode-card.exam {
+            background: linear-gradient(135deg, #D0021B, #E64A19);
+            border-left: 4px solid #D0021B;
+        }
+        
+        .mode-card.exam .mode-title,
+        .mode-card.exam .mode-desc {
+            color: white;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .practice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-bottom: 12px;
+        }
+        
+        .question-number-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .question-type {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        
+        .question-type.单选题 { background: #667eea; color: white; }
+        .question-type.多选题 { background: #f59e0b; color: white; }
+        .question-type.判断题 { background: #10b981; color: white; }
+        
+        .question-content {
+            font-size: 1em;
+            line-height: 1.5;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        .options {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .option {
+            display: flex;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .option.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .option.correct {
+            border-color: #4CAF50;
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .option.wrong {
+            border-color: #f44336;
+            background: #f44336;
+            color: white;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85em;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        
+        .feedback {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .feedback.correct {
+            background: #4CAF50;
+            color: white;
+            display: block;
+        }
+        
+        .feedback.wrong {
+            background: #f44336;
+            color: white;
+            display: block;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .mode-select-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .mode-select-panel h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .select-group {
+            margin-bottom: 15px;
+        }
+        
+        .select-group label {
+            display: block;
+            color: #666;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .select-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        
+        .btn-block {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .records-list {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .records-list h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .record-item {
+            padding: 12px;
+            background: #f5f7ff;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+        }
+        
+        .record-item strong {
+            color: #667eea;
+        }
+        
+        .exam-timer {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #f44336;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        /* 考试倒计时条 */
+        .exam-timer-bar {
+            background: linear-gradient(135deg, #f44336, #e91e63);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(244,67,54,0.3);
+        }
+        
+        .exam-timer-bar.urgent {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* 题号导航 */
+        .exam-nav {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .nav-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .question-numbers {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 6px;
+        }
+        
+        .q-number {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .q-number:hover {
+            background: #e0e0e0;
+        }
+        
+        .q-number.current {
+            border-color: #667eea;
+            font-weight: bold;
+        }
+        
+        .q-number.answered {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .q-number.wrong {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-exam {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            margin-left: 10px;
+        }
+        
+        /* 题库浏览样式 */
+        .browser-filters {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        
+        .filter-group label {
+            display: block;
+            color: #666;
+            font-size: 0.85em;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+        
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+        
+        .reset-filter-btn {
+            padding: 10px 20px;
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .jump-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        .browser-info {
+            background: white;
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            font-size: 0.95em;
+        }
+        
+        .questions-list {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .question-item {
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .question-id {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .question-type-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .question-type-badge.单选题 {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .question-type-badge.多选题 {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .question-type-badge.判断题 {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .question-content {
+            color: #333;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        
+        .question-options {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .option-row {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+        }
+        
+        .option-letter {
+            font-weight: bold;
+            color: #667eea;
+            margin-right: 8px;
+            min-width: 20px;
+        }
+        
+        .toggle-answer-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .answer-section {
+            margin-top: 12px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 6px;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        
+        .jump-hint {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Logo 区域 -->
+        <div class="logo-bar">
+            <img src="/uploads/1778728777452-16047671919.jpg" alt="中移铁通">
+        </div>
+        
+        <!-- 学员首页 -->
+        <div id="homePage" class="page active">
+            <div class="header">
+                <h1>👨‍🎓 学员中心</h1>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-name">你好，<span id="userName">学员</span>！</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="statAnswers">0</div>
+                        <div class="stat-label">答题数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statRate">0%</div>
+                        <div class="stat-label">正确率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statExams">0</div>
+                        <div class="stat-label">考试次数</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modes">
+                <div class="mode-card" onclick="showModeSelect('sequential')">
+                    <div class="mode-icon">📖</div>
+                    <div class="mode-info">
+                        <div class="mode-title">顺序刷题</div>
+                        <div class="mode-desc">按题号顺序练习</div>
+                    </div>
+                </div>
+                
+                <div class="mode-card" onclick="showModeSelect('random')">
+                    <div class="mode-icon">🎲</div>
+                    <div class="mode-info">
+                        <div class="mode-title">随机刷题</div>
+                        <div class="mode-desc">随机抽取题目</div>
+                    </div>
+                </div>
+                
+                <div class="mode-card exam" onclick="showExamConfirm()">
+                    <div class="mode-icon">⏱️</div>
+                    <div class="mode-info">
+                        <div class="mode-title">模拟考试</div>
+                        <div class="mode-desc">60 分钟 100 题（60 单选 +20 多选 +20 判断）</div>
+                    </div>
+                </div>
+                
+                <div class="mode-card" onclick="showRecords()">
+                    <div class="mode-icon">📊</div>
+                    <div class="mode-info">
+                        <div class="mode-title">学习记录</div>
+                        <div class="mode-desc">查看答题和考试记录</div>
+                    </div>
+                </div>
+                
+                <div class="mode-card" onclick="showQuestionBrowser()">
+                    <div class="mode-icon">📖</div>
+                    <div class="mode-info">
+                        <div class="mode-title">题库浏览</div>
+                        <div class="mode-desc">查看所有题目</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 模式选择页 -->
+        <div id="modeSelectPage" class="page">
+            <div class="practice-header">
+                <h2 id="modeSelectTitle">选择刷题模式</h2>
+                <button class="back-btn" onclick="goHome()">返回首页</button>
+            </div>
+            
+            <div class="mode-select-panel">
+                <h3>📝 选择题型</h3>
+                <div class="select-group">
+                    <label>题型</label>
+                    <select id="questionTypeSelect">
+                        <option value="all">全部题型</option>
+                        <option value="单选题">单选题</option>
+                        <option value="多选题">多选题</option>
+                        <option value="判断题">判断题</option>
+                    </select>
+                </div>
+                
+                <!-- 随机刷题题量选择 -->
+                <div id="randomCountSelect" style="display:none;">
+                    <h3>🔢 选择题量</h3>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:15px 0;">
+                        <button class="random-count-btn" id="randomCount30" onclick="selectRandomCount(30)" style="background:linear-gradient(135deg,#4CAF50,#45a049);color:white;border:none;padding:20px 15px;border-radius:12px;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(76,175,80,0.3);transition:all 0.3s;">
+                            <div style="font-size:1.8em;margin-bottom:5px;">30 题</div>
+                            <div style="font-size:0.75em;margin-top:8px;opacity:0.9;">20 单 +5 多 +5 判</div>
+                        </button>
+                        <button class="random-count-btn" id="randomCount50" onclick="selectRandomCount(50)" style="background:rgba(255,255,255,0.15);color:white;border:2px solid rgba(255,255,255,0.3);padding:20px 15px;border-radius:12px;cursor:pointer;font-weight:bold;transition:all 0.3s;">
+                            <div style="font-size:1.8em;margin-bottom:5px;">50 题</div>
+                            <div style="font-size:0.75em;margin-top:8px;opacity:0.9;">30 单 +10 多 +10 判</div>
+                        </button>
+                        <button class="random-count-btn" id="randomCount100" onclick="selectRandomCount(100)" style="background:rgba(255,255,255,0.15);color:white;border:2px solid rgba(255,255,255,0.3);padding:20px 15px;border-radius:12px;cursor:pointer;font-weight:bold;transition:all 0.3s;">
+                            <div style="font-size:1.8em;margin-bottom:5px;">100 题</div>
+                            <div style="font-size:0.75em;margin-top:8px;opacity:0.9;">60 单 +20 多 +20 判</div>
+                        </button>
+                    </div>
+                </div>
+                
+                <h3>📖 选择模式</h3>
+                <div class="select-group">
+                    <label>学习模式</label>
+                    <select id="practiceModeSelect">
+                        <option value="answer">答题模式</option>
+                        <option value="review">背题模式</option>
+                    </select>
+                </div>
+                
+                <button class="btn-block" onclick="startPractice()">开始刷题</button>
+            </div>
+        </div>
+        
+        <!-- 刷题页面 -->
+        <div id="practicePage" class="page">
+            <div class="practice-header">
+                <h2 id="practiceModeTitle">刷题</h2>
+                <button class="back-btn" onclick="goHome()">返回首页</button>
+            </div>
+            
+            <!-- 考试倒计时（仅考试模式显示） -->
+            <div id="examTimerBar" class="exam-timer-bar hidden">
+                <span id="examTimerText">⏱️ 60:00</span>
+            </div>
+            
+            <!-- 题号导航（仅考试模式显示） -->
+            <div id="examNav" class="exam-nav hidden">
+                <div class="nav-info">
+                    <span>已答：<strong id="answeredCount">0</strong>/100</span>
+                    <span>当前：<strong id="currentQNum">1</strong></span>
+                </div>
+                <div id="questionNumbers" class="question-numbers"></div>
+            </div>
+            
+            <div id="questionContainer"></div>
+            
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="prevQuestion()">上一题</button>
+                <button class="btn btn-primary" id="submitBtn" disabled onclick="checkAnswer()">提交答案</button>
+                <button class="btn btn-secondary" onclick="nextQuestion()">下一题</button>
+                <button class="btn btn-exam" id="submitExamBtn" onclick="submitExam()" style="display:none;">📝 交卷</button>
+            </div>
+            
+            <div class="feedback" id="feedback"></div>
+        </div>
+        
+        <!-- 学习记录页 -->
+        <div id="recordsPage" class="page">
+            <div class="practice-header">
+                <h2>📊 学习记录</h2>
+                <button class="back-btn" onclick="goHome()">返回首页</button>
+            </div>
+            
+            <!-- 错题集入口 -->
+            <div class="mode-card" onclick="showWrongBook()" style="background:linear-gradient(135deg,#f44336,#e91e63);margin-bottom:15px;">
+                <div class="mode-icon">❌</div>
+                <div class="mode-info">
+                    <div class="mode-title" style="color:white;">📚 我的错题集</div>
+                    <div class="mode-desc" style="color:rgba(255,255,255,0.8);">查看错题，查漏补缺</div>
+                </div>
+                <div style="font-size:1.5em;color:white;">➡️</div>
+            </div>
+            
+            <div class="records-list">
+                <h3>📝 最近考试记录</h3>
+                <div id="examRecordsList">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 错题集页面 -->
+        <div id="wrongBookPage" class="page">
+            <div class="practice-header">
+                <h2>📚 我的错题集</h2>
+                <button class="back-btn" onclick="showRecords()">返回记录</button>
+            </div>
+            
+            <div class="records-list">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h3 style="margin:0;">❌ 错题列表</h3>
+                    <button onclick="clearWrongBook()" style="background:#f44336;color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;font-size:0.85em;">🗑️ 清空错题</button>
+                </div>
+                <div id="wrongBookList">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 题库浏览页 -->
+        <div id="browserPage" class="page">
+            <div class="practice-header">
+                <h2>📖 题库浏览</h2>
+                <button class="back-btn" onclick="goHome()">返回首页</button>
+            </div>
+            
+            <div class="browser-filters">
+                <div class="filter-group">
+                    <label>📦 题组</label>
+                    <select id="filterPage" onchange="loadQuestions()">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>📝 题型</label>
+                    <select id="filterType" onchange="loadQuestions()">
+                        <option value="all">全部题型</option>
+                        <option value="单选题">单选题</option>
+                        <option value="多选题">多选题</option>
+                        <option value="判断题">判断题</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>🔍 关键字</label>
+                    <input type="text" id="filterKeyword" placeholder="输入题目内容关键字" onkeyup="handleKeywordSearch(event)">
+                </div>
+                
+                <div class="filter-group">
+                    <label>🔢 题号</label>
+                    <input type="text" id="filterId" placeholder="输入题号精确查找" onkeyup="handleIdSearch(event)">
+                </div>
+                
+                <div class="filter-group">
+                    <label>🚀 跳转到</label>
+                    <div style="display:flex;gap:6px;">
+                        <input type="text" id="jumpToId" placeholder="输入题号" style="flex:1;" onkeydown="if(event.key==='Enter')jumpToQuestion()">
+                        <button class="jump-btn" onclick="jumpToQuestion()">跳转</button>
+                    </div>
+                    <div class="jump-hint">💡 按回车键快速跳转</div>
+                </div>
+                
+                <button class="reset-filter-btn" onclick="resetFilters()">重置</button>
+            </div>
+            
+            <div class="browser-info">
+                <span id="questionTotal">共 0 题</span>
+                <span style="color:#666;font-size:0.9em;">（最多显示 100 题）</span>
+            </div>
+            
+            <div id="questionsList" class="questions-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/questions.js"></script>
+    <script src="/static/student.js"></script>
+</body>
+</html>

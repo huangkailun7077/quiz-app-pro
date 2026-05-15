@@ -404,6 +404,8 @@ function renderQuestionNumbers() {
 
 // 更新题号导航状态
 function updateQuestionNumbers() {
+    console.log('[DEBUG] updateQuestionNumbers 开始执行，考试模式:', currentMode, '已答题数:', Object.keys(examAnswers).length);
+    
     // 更新当前题号
     document.getElementById('currentQNum').textContent = currentIndex + 1;
     
@@ -416,11 +418,19 @@ function updateQuestionNumbers() {
     document.getElementById('unansweredCount').textContent = unansweredCount;
     
     // 更新所有题号状态
+    let greenCount = 0, redCount = 0;
     for (let i = 0; i < currentQuestions.length; i++) {
         const el = document.getElementById(`qnum-${i}`);
-        if (!el) continue;
+        if (!el) {
+            console.log('[DEBUG] 题号元素不存在:', i);
+            continue;
+        }
         
+        // 重置样式
         el.classList.remove('current', 'answered', 'wrong');
+        el.style.background = '#f0f0f0';
+        el.style.color = '';
+        el.style.fontWeight = '';
         
         if (i === currentIndex) {
             el.classList.add('current');
@@ -435,18 +445,23 @@ function updateQuestionNumbers() {
             const correctSorted = q.answer.split('').sort().join('');
             const isCorrect = userSorted === correctSorted;
             
-            if (isCorrect) {
-                el.classList.add('answered'); // 绿色
-            } else {
-                el.classList.add('wrong'); // 红色
-            }
+            console.log('[DEBUG] 题号', i+1, '- 用户答案:', userAnswer, '正确答案:', q.answer, '对错:', isCorrect);
             
-            console.log(`题号${i+1}: 用户答案=${userAnswer}, 正确答案=${q.answer}, 对错=${isCorrect}`);
+            if (isCorrect) {
+                el.style.background = '#4CAF50';
+                el.style.color = 'white';
+                el.style.fontWeight = 'bold';
+                greenCount++;
+            } else {
+                el.style.background = '#f44336';
+                el.style.color = 'white';
+                el.style.fontWeight = 'bold';
+                redCount++;
+            }
         }
     }
     
-    // 更新考试统计
-    updateExamStats();
+    console.log('[DEBUG] 题号导航更新完成 - 绿色:', greenCount, '红色:', redCount, '当前:', currentIndex + 1);
 }
 
 // 更新考试统计

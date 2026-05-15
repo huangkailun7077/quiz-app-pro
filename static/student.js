@@ -78,10 +78,32 @@ function goHome() {
 // 显示模式选择
 let selectedPracticeMode = '';
 let selectedRandomCount = 30; // 随机刷题题量
+let selectedSequentialGroup = 1; // 顺序刷题组别
 
 function showModeSelect(mode) {
     selectedPracticeMode = mode;
     document.getElementById('modeSelectTitle').textContent = mode === 'sequential' ? '顺序刷题' : '随机刷题';
+    
+    // 顺序刷题显示组别选择
+    const sequentialDiv = document.getElementById('sequentialGroupSelect');
+    if (mode === 'sequential') {
+        sequentialDiv.style.display = 'block';
+        // 生成组别选项
+        const totalGroups = Math.ceil(questions.length / 100);
+        const groupSelect = document.getElementById('sequentialGroupSelect');
+        groupSelect.innerHTML = '';
+        for (let i = 1; i <= totalGroups; i++) {
+            const startNum = (i - 1) * 100 + 1;
+            const endNum = Math.min(i * 100, questions.length);
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `第${i}组（${startNum}-${endNum}题）`;
+            groupSelect.appendChild(option);
+        }
+        selectedSequentialGroup = 1;
+    } else {
+        sequentialDiv.style.display = 'none';
+    }
     
     // 随机刷题显示题量选择
     const randomSelectDiv = document.getElementById('randomCountSelect');
@@ -112,6 +134,11 @@ function startPractice() {
     practiceMode = document.getElementById('practiceModeSelect').value;
     practiceAnswerCount = 0;
     
+    // 顺序刷题保存组别
+    if (selectedPracticeMode === 'sequential') {
+        selectedSequentialGroup = parseInt(document.getElementById('sequentialGroupSelect').value);
+    }
+    
     // 筛选题目
     let filteredQuestions = [...questions];
     
@@ -120,9 +147,12 @@ function startPractice() {
     }
     
     if (currentMode === 'sequential') {
-        // 顺序刷题：按 ID 排序
+        // 顺序刷题：按 ID 排序，根据组别选择题目
         filteredQuestions.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-        currentQuestions = filteredQuestions;
+        const groupStart = (selectedSequentialGroup - 1) * 100;
+        const groupEnd = groupStart + 100;
+        currentQuestions = filteredQuestions.slice(groupStart, groupEnd);
+        console.log('顺序刷题 - 组别:', selectedSequentialGroup, '题目范围:', groupStart + 1, '-', Math.min(groupEnd, filteredQuestions.length));
     } else if (currentMode === 'random') {
         // 随机刷题：按选择的题量
         const singleChoice = filteredQuestions.filter(q => q.type === '单选题');

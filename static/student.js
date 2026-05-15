@@ -845,7 +845,16 @@ function submitExam() {
     
     currentQuestions.forEach((q, index) => {
         const userAnswer = examAnswers[q.id];
-        const isCorrect = userAnswer === q.answer;
+        
+        // 判断题特殊处理：用户答案是 A/B，正确答案是 正确/错误
+        let isCorrect = false;
+        if (q.type === '判断题') {
+            const judgeMap = { 'A': '正确', 'B': '错误' };
+            const userAnswerText = judgeMap[userAnswer] || '';
+            isCorrect = userAnswerText === q.answer;
+        } else {
+            isCorrect = userAnswer === q.answer;
+        }
         
         if (isCorrect) {
             correctCount++;
@@ -951,27 +960,40 @@ function showExamDetails() {
     
     currentQuestions.forEach((q, index) => {
         const userAnswer = examAnswers[q.id] || '';
-        const isCorrect = userAnswer === q.answer;
         const isUnanswered = userAnswer === '';
+        
+        // 判断题特殊处理：用户答案是 A/B，正确答案是 正确/错误
+        let isCorrect = false;
+        if (q.type === '判断题') {
+            const judgeMap = { 'A': '正确', 'B': '错误' };
+            const userAnswerText = judgeMap[userAnswer] || '';
+            isCorrect = userAnswerText === q.answer;
+        } else {
+            isCorrect = userAnswer === q.answer;
+        }
         
         // 生成选项 HTML
         let optionsHtml = '';
         if (q.type === '判断题') {
             const judgeOptions = { 'A': '正确', 'B': '错误' };
+            const correctLetter = q.answer === '正确' ? 'A' : 'B';
+            
             for (const [letter, text] of Object.entries(judgeOptions)) {
-                const isSelected = userAnswer.includes(letter);
-                const isCorrectAnswer = q.answer.includes(letter);
+                const isSelected = userAnswer === letter;
+                const isCorrectAnswer = letter === correctLetter;
                 
                 let optionClass = 'option';
                 let optionStyle = '';
                 
                 if (isSelected && isCorrectAnswer) {
                     optionClass += ' correct'; // 选对了
+                    optionStyle = 'background:#4CAF50;color:white;border-color:#4CAF50;';
                 } else if (isSelected && !isCorrectAnswer) {
                     optionClass += ' wrong'; // 选错了
+                    optionStyle = 'background:#f44336;color:white;border-color:#f44336;';
                 } else if (!isSelected && isCorrectAnswer) {
                     optionClass += ' correct'; // 正确答案
-                    optionStyle = 'border:2px solid #4CAF50;background:#e8f5e9;';
+                    optionStyle = 'border:2px solid #4CAF50;background:#e8f5e9;color:#2e7d32;';
                 }
                 
                 optionsHtml += `

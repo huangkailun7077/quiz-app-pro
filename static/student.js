@@ -424,13 +424,20 @@ function updateQuestionNumbers() {
         
         // 如果这道题已答，检查对错并标记
         const q = currentQuestions[i];
-        if (examAnswers[q.id]) {
-            const isCorrect = examAnswers[q.id] === q.answer;
+        const userAnswer = examAnswers[q.id];
+        if (userAnswer) {
+            // 比较多选题答案时排序后比较
+            const userSorted = userAnswer.split('').sort().join('');
+            const correctSorted = q.answer.split('').sort().join('');
+            const isCorrect = userSorted === correctSorted;
+            
             if (isCorrect) {
                 el.classList.add('answered'); // 绿色
             } else {
                 el.classList.add('wrong'); // 红色
             }
+            
+            console.log(`题号${i+1}: 用户答案=${userAnswer}, 正确答案=${q.answer}, 对错=${isCorrect}`);
         }
     }
     

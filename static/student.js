@@ -534,9 +534,15 @@ function selectOption(letter) {
         if (currentMode === 'exam') {
             examAnswers[q.id] = multiSelectedAnswers.sort().join('');
             console.log('多选题答案已记录:', q.id, '=', examAnswers[q.id]);
-            // 更新题号导航
-            updateQuestionNumbers();
-            console.log('题号导航已更新');
+            
+            // 更新当前题号的小方块颜色（统一蓝色）
+            const currentQNumEl = document.getElementById(`qnum-${currentIndex}`);
+            if (currentQNumEl) {
+                currentQNumEl.style.background = '#2196F3';
+                currentQNumEl.style.color = 'white';
+                currentQNumEl.style.fontWeight = 'bold';
+            }
+            
             // 标记已选选项为蓝色
             multiSelectedAnswers.forEach(l => {
                 const opt = document.getElementById(`option-${l}`);
@@ -558,26 +564,16 @@ function selectOption(letter) {
             examAnswers[q.id] = letter;
             console.log('[EXAM] 答案已记录 - 题号:', currentIndex+1, '题目 ID:', q.id, '答案:', examAnswers[q.id]);
             
-            // 直接更新当前题号的小方块颜色（立即生效）
+            // 直接更新当前题号的小方块颜色（统一蓝色）
             const currentQNumEl = document.getElementById(`qnum-${currentIndex}`);
             console.log('[EXAM] 查找题号元素 qnum-' + currentIndex + ':', currentQNumEl ? '找到' : '未找到');
             
             if (currentQNumEl) {
-                // 检查对错
-                const isCorrect = examAnswers[q.id] === q.answer;
-                console.log('[EXAM] 题号', currentIndex+1, '对错判断:', isCorrect, '用户答案:', examAnswers[q.id], '正确答案:', q.answer);
-                
-                if (isCorrect) {
-                    currentQNumEl.style.background = '#4CAF50';
-                    currentQNumEl.style.color = 'white';
-                    currentQNumEl.style.fontWeight = 'bold';
-                    console.log('[EXAM] ✓ 题号', currentIndex+1, '标记为绿色（答对）');
-                } else {
-                    currentQNumEl.style.background = '#f44336';
-                    currentQNumEl.style.color = 'white';
-                    currentQNumEl.style.fontWeight = 'bold';
-                    console.log('[EXAM] ✗ 题号', currentIndex+1, '标记为红色（答错）');
-                }
+                // 统一标记为蓝色（不区分对错）
+                currentQNumEl.style.background = '#2196F3';
+                currentQNumEl.style.color = 'white';
+                currentQNumEl.style.fontWeight = 'bold';
+                console.log('[EXAM] 题号', currentIndex+1, '标记为蓝色（已答）');
             } else {
                 console.error('[EXAM] ✗ 找不到题号元素 qnum-' + currentIndex);
             }

@@ -895,10 +895,6 @@ function submitExam() {
         console.log('[EXAM] 分数:', score, '正确数:', correctCount, '总题数:', currentQuestions.length);
         // 显示详细结果
         showExamResultsWithDetails(score, correctCount, timeUsed, stats);
-    }).catch((e) => {
-        console.error('[EXAM] 保存考试记录失败:', e);
-        alert('保存考试记录失败，但成绩已计算：' + score + '分');
-        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
     });
 }
 

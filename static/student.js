@@ -920,68 +920,35 @@ function submitExam() {
 
 // 显示考试结果（先显示分数和按钮）
 function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
-    console.log('[EXAM] showExamResultsWithDetails 被调用');
-    console.log('[EXAM] 当前容器:', document.getElementById('questionContainer') ? '找到' : '未找到');
+    console.log('[EXAM] === showExamResultsWithDetails 开始执行 ===');
+    console.log('[EXAM] 参数：score=', score, 'correctCount=', correctCount, 'timeUsed=', timeUsed);
     
-    // 隐藏考试导航和提交按钮
-    document.getElementById('examTimerBar').classList.add('hidden');
-    document.getElementById('examNav').classList.add('hidden');
-    document.getElementById('submitExamBtn').style.display = 'none';
-    document.getElementById('controls').style.display = 'none';
-    document.getElementById('questionNumbers').style.display = 'none';
-    
-    // 显示成绩摘要和答题详情按钮
-    const summaryHtml = `
-        <div style="background:linear-gradient(135deg,#0085D0,#00A8E6);color:white;padding:30px;border-radius:15px;margin-bottom:25px;text-align:center;box-shadow:0 10px 30px rgba(0,133,208,0.3);">
-            <h2 style="margin-bottom:20px;font-size:1.8em;">📊 考试结果</h2>
-            <div style="font-size:5em;font-weight:bold;margin:20px 0;text-shadow:0 2px 10px rgba(0,0,0,0.2);">${score}分</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:20px;">
-                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;backdrop-filter:blur(10px);">
-                    <div style="font-size:1.8em;font-weight:bold;">${correctCount}/${currentQuestions.length}</div>
-                    <div style="font-size:0.85em;opacity:0.9;">✅ 正确题目</div>
-                </div>
-                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;backdrop-filter:blur(10px);">
-                    <div style="font-size:1.8em;font-weight:bold;">${Math.floor(timeUsed/60)}:${(timeUsed%60).toString().padStart(2,'0')}</div>
-                    <div style="font-size:0.85em;opacity:0.9;">⏱️ 考试用时</div>
-                </div>
-                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;backdrop-filter:blur(10px);">
-                    <div style="font-size:1.8em;font-weight:bold;">${(score >= 60 ? '✅' : '💪')}</div>
-                    <div style="font-size:0.85em;opacity:0.9;">${score >= 60 ? '通过' : '继续加油'}</div>
-                </div>
-            </div>
-            <div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.3);">
-                <div style="font-size:0.9em;opacity:0.9;">📈 各题型得分</div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;font-size:0.85em;">
-                    <div>单选：${stats.single.correct}/${stats.single.total}</div>
-                    <div>多选：${stats.multi.correct}/${stats.multi.total}</div>
-                    <div>判断：${stats.judge.correct}/${stats.judge.total}</div>
-                </div>
-            </div>
-            <div style="margin-top:25px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;">
-                <button onclick="showExamDetails()" style="background:#4CAF50;color:white;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(76,175,80,0.4);transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(76,175,80,0.6)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(76,175,80,0.4)'">📝 答题详情</button>
-                <button onclick="goHome()" style="background:white;color:#0085D0;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.2);transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'">🏠 返回首页</button>
-            </div>
-        </div>
-        <div id="examDetailsSection" style="display:none;"></div>
-    `;
-    
-    // 插入到页面 - 使用全新容器避免缓存
     const container = document.getElementById('questionContainer');
-    console.log('[EXAM] 准备替换容器内容');
+    console.log('[EXAM] 容器:', container ? '找到' : '未找到');
     
-    // 先清空容器
-    if (container) {
-        container.innerHTML = '';
-        console.log('[EXAM] 容器已清空');
+    if (!container) {
+        console.error('[EXAM] 错误：找不到 questionContainer 元素');
+        alert('页面元素未找到，请刷新页面重试');
+        return;
     }
     
-    // 插入新内容
-    container.innerHTML = summaryHtml;
-    console.log('[EXAM] 新内容已插入');
+    ['examTimerBar','examNav','submitExamBtn','controls','questionNumbers'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (id === 'submitExamBtn') el.style.display = 'none';
+            else if (id === 'controls' || id === 'questionNumbers') el.style.display = 'none';
+            else el.classList.add('hidden');
+            console.log('[EXAM] 已隐藏:', id);
+        }
+    });
     
-    // 滚动到顶部
+    const html = `<div style="background:linear-gradient(135deg,#0085D0,#00A8E6);color:white;padding:30px;border-radius:15px;margin-bottom:25px;text-align:center;box-shadow:0 10px 30px rgba(0,133,208,0.3);"><h2 style="margin-bottom:20px;font-size:1.8em;">📊 考试结果</h2><div style="font-size:5em;font-weight:bold;margin:20px 0;text-shadow:0 2px 10px rgba(0,0,0,0.2);">${score}分</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:20px;"><div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;"><div style="font-size:1.8em;font-weight:bold;">${correctCount}/${currentQuestions.length}</div><div style="font-size:0.85em;opacity:0.9;">✅ 正确题目</div></div><div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;"><div style="font-size:1.8em;font-weight:bold;">${Math.floor(timeUsed/60)}:${(timeUsed%60).toString().padStart(2,'0')}</div><div style="font-size:0.85em;opacity:0.9;">⏱️ 考试用时</div></div><div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;"><div style="font-size:1.8em;font-weight:bold;">${score >= 60 ? '✅' : '💪'}</div><div style="font-size:0.85em;opacity:0.9;">${score >= 60 ? '通过' : '继续加油'}</div></div></div><div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.3);"><div style="font-size:0.9em;opacity:0.9;">📈 各题型得分</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;font-size:0.85em;"><div>单选：${stats.single.correct}/${stats.single.total}</div><div>多选：${stats.multi.correct}/${stats.multi.total}</div><div>判断：${stats.judge.correct}/${stats.judge.total}</div></div></div><div style="margin-top:25px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;"><button onclick="showExamDetails()" style="background:#4CAF50;color:white;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;">📝 答题详情</button><button onclick="goHome()" style="background:white;color:#0085D0;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;">🏠 返回首页</button></div></div><div id="examDetailsSection" style="display:none;margin-top:25px;background:white;padding:25px;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,0.1);"></div>`;
+    
+    container.innerHTML = '';
+    container.innerHTML = html;
+    console.log('[EXAM] HTML 已插入，长度:', container.innerHTML.length);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    console.log('[EXAM] 页面已滚动到顶部');
+    console.log('[EXAM] === showExamResultsWithDetails 执行完成 ===');
 }
 
 // 显示答题详情

@@ -213,10 +213,14 @@ function showExamConfirm() {
 
 // 开始考试
 function startExam() {
+    console.log('开始考试，题库总数:', questions.length);
+    
     // 从题库随机抽题
     const singleChoice = questions.filter(q => q.type === '单选题');
     const multiChoice = questions.filter(q => q.type === '多选题');
     const trueFalse = questions.filter(q => q.type === '判断题');
+    
+    console.log('题型统计 - 单选题:', singleChoice.length, '多选题:', multiChoice.length, '判断题:', trueFalse.length);
     
     // 检查题库数量
     if (singleChoice.length < 60 || multiChoice.length < 20 || trueFalse.length < 20) {

@@ -891,7 +891,7 @@ function submitExam() {
     });
 }
 
-// 显示考试结果（保留答题页面并标注）
+// 显示考试结果（先显示分数和按钮）
 function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
     // 隐藏考试导航和提交按钮
     document.getElementById('examTimerBar').classList.add('hidden');
@@ -900,11 +900,11 @@ function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
     document.getElementById('controls').style.display = 'none';
     document.getElementById('questionNumbers').style.display = 'none';
     
-    // 在顶部显示成绩摘要
+    // 显示成绩摘要和答题详情按钮
     const summaryHtml = `
-        <div style="background:linear-gradient(135deg,#0085D0,#00A8E6);color:white;padding:25px;border-radius:15px;margin-bottom:25px;text-align:center;box-shadow:0 10px 30px rgba(0,133,208,0.3);">
+        <div style="background:linear-gradient(135deg,#0085D0,#00A8E6);color:white;padding:30px;border-radius:15px;margin-bottom:25px;text-align:center;box-shadow:0 10px 30px rgba(0,133,208,0.3);">
             <h2 style="margin-bottom:20px;font-size:1.8em;">📊 考试结果</h2>
-            <div style="font-size:4em;font-weight:bold;margin:20px 0;text-shadow:0 2px 10px rgba(0,0,0,0.2);">${score}分</div>
+            <div style="font-size:5em;font-weight:bold;margin:20px 0;text-shadow:0 2px 10px rgba(0,0,0,0.2);">${score}分</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:20px;">
                 <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:10px;backdrop-filter:blur(10px);">
                     <div style="font-size:1.8em;font-weight:bold;">${correctCount}/${currentQuestions.length}</div>
@@ -927,25 +927,31 @@ function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
                     <div>判断：${stats.judge.correct}/${stats.judge.total}</div>
                 </div>
             </div>
-            <button onclick="goHome()" style="background:white;color:#0085D0;border:none;padding:12px 40px;border-radius:10px;font-size:1em;cursor:pointer;margin-top:25px;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.2);transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">返回首页</button>
+            <div style="margin-top:25px;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="showExamDetails()" style="background:#4CAF50;color:white;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(76,175,80,0.4);transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(76,175,80,0.6)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(76,175,80,0.4)'">📝 答题详情</button>
+                <button onclick="goHome()" style="background:white;color:#0085D0;border:none;padding:15px 40px;border-radius:10px;font-size:1.1em;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.2);transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'">🏠 返回首页</button>
+            </div>
         </div>
+        <div id="examDetailsSection" style="display:none;"></div>
     `;
     
     // 插入到页面顶部
     const container = document.getElementById('questionContainer');
-    container.insertAdjacentHTML('afterbegin', summaryHtml);
-    
-    // 重新渲染所有题目，标注对错
-    renderQuestionWithResults();
+    container.innerHTML = summaryHtml;
     
     // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 渲染所有题目并标注结果
-function renderQuestionWithResults() {
+// 显示答题详情
+function showExamDetails() {
+    const detailsSection = document.getElementById('examDetailsSection');
+    if (!detailsSection) return;
+    
+    detailsSection.style.display = 'block';
+    
     let html = '<div style="margin-top:25px;">';
-    html += '<h3 style="color:#333;margin-bottom:20px;font-size:1.3em;">📝 完整答卷（共${currentQuestions.length}题）</h3>';
+    html += '<h3 style="color:#333;margin-bottom:20px;font-size:1.3em;">📝 完整答卷（共' + currentQuestions.length + '题）</h3>';
     
     currentQuestions.forEach((q, index) => {
         const userAnswer = examAnswers[q.id] || '';

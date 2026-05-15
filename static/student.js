@@ -116,12 +116,16 @@ function showModeSelect(mode) {
 // 选择随机题量
 function selectRandomCount(count) {
     selectedRandomCount = count;
+    // 重置所有按钮样式
     document.querySelectorAll('.random-count-btn').forEach(btn => {
-        btn.style.background = 'rgba(255,255,255,0.2)';
-        btn.style.color = 'white';
+        btn.style.opacity = '0.6';
+        btn.style.transform = 'scale(0.95)';
     });
-    document.getElementById(`randomCount${count}`).style.background = '#4CAF50';
-    document.getElementById(`randomCount${count}`).style.color = 'white';
+    // 选中按钮高亮
+    const selectedBtn = document.getElementById(`randomCount${count}`);
+    selectedBtn.style.opacity = '1';
+    selectedBtn.style.transform = 'scale(1.05)';
+    selectedBtn.style.boxShadow = '0 8px 25px rgba(255,255,255,0.5)';
 }
 
 // 开始刷题
@@ -270,6 +274,14 @@ function renderQuestion() {
         const judgeOptions = { 'A': '正确', 'B': '错误' };
         for (const [letter, text] of Object.entries(judgeOptions)) {
             let optionClass = 'option';
+            let optionStyle = '';
+            
+            // 考试模式：恢复已选答案的颜色
+            if (currentMode === 'exam' && examAnswers[q.id]) {
+                if (examAnswers[q.id].includes(letter)) {
+                    optionStyle = 'background:#E3F2FD;border-color:#2196F3;';
+                }
+            }
             
             // 背题模式直接显示正确答案
             if (practiceMode === 'review') {
@@ -279,7 +291,7 @@ function renderQuestion() {
             }
             
             optionsHtml += `
-                <div class="${optionClass}" onclick="selectOption('${letter}')" id="option-${letter}">
+                <div class="${optionClass}" style="${optionStyle}" onclick="selectOption('${letter}')" id="option-${letter}">
                     <span class="option-letter">${letter}.</span>
                     <span class="option-text">${text}</span>
                 </div>
@@ -289,6 +301,14 @@ function renderQuestion() {
         // 其他题型正常渲染
         for (const [letter, text] of Object.entries(q.options)) {
             let optionClass = 'option';
+            let optionStyle = '';
+            
+            // 考试模式：恢复已选答案的颜色
+            if (currentMode === 'exam' && examAnswers[q.id]) {
+                if (examAnswers[q.id].includes(letter)) {
+                    optionStyle = 'background:#E3F2FD;border-color:#2196F3;font-weight:bold;';
+                }
+            }
             
             // 背题模式直接显示正确答案
             if (practiceMode === 'review') {
@@ -298,7 +318,7 @@ function renderQuestion() {
             }
             
             optionsHtml += `
-                <div class="${optionClass}" onclick="selectOption('${letter}')" id="option-${letter}">
+                <div class="${optionClass}" style="${optionStyle}" onclick="selectOption('${letter}')" id="option-${letter}">
                     <span class="option-letter">${letter}.</span>
                     <span class="option-text">${text}</span>
                 </div>
@@ -396,16 +416,21 @@ function updateQuestionNumbers() {
         const el = document.getElementById(`qnum-${i}`);
         if (!el) continue;
         
-        el.classList.remove('current', 'answered');
+        el.classList.remove('current', 'answered', 'wrong');
         
         if (i === currentIndex) {
             el.classList.add('current');
         }
         
-        // 如果这道题已答，标记为已答
+        // 如果这道题已答，检查对错并标记
         const q = currentQuestions[i];
         if (examAnswers[q.id]) {
-            el.classList.add('answered');
+            const isCorrect = examAnswers[q.id] === q.answer;
+            if (isCorrect) {
+                el.classList.add('answered'); // 绿色
+            } else {
+                el.classList.add('wrong'); // 红色
+            }
         }
     }
     
@@ -479,11 +504,19 @@ function selectOption(letter) {
             document.getElementById(`option-${letter}`).classList.add('selected');
         }
         
-        // 如果是考试模式，记录答案
+        // 如果是考试模式，记录答案并标记选项颜色
         if (currentMode === 'exam') {
             examAnswers[q.id] = multiSelectedAnswers.sort().join('');
             // 更新题号导航
             updateQuestionNumbers();
+            // 标记已选选项为蓝色
+            multiSelectedAnswers.forEach(l => {
+                const opt = document.getElementById(`option-${l}`);
+                if (opt) {
+                    opt.style.background = '#E3F2FD';
+                    opt.style.borderColor = '#2196F3';
+                }
+            });
         }
         updateSubmitButton();
     } else {
@@ -492,11 +525,17 @@ function selectOption(letter) {
         document.getElementById(`option-${letter}`).classList.add('selected');
         selectedAnswer = letter;
         
-        // 如果是考试模式，记录答案
+        // 如果是考试模式，记录答案并标记选项颜色
         if (currentMode === 'exam') {
             examAnswers[q.id] = letter;
             // 更新题号导航
             updateQuestionNumbers();
+            // 标记已选选项为蓝色
+            const selectedOpt = document.getElementById(`option-${letter}`);
+            if (selectedOpt) {
+                selectedOpt.style.background = '#E3F2FD';
+                selectedOpt.style.borderColor = '#2196F3';
+            }
             
             // 考试模式下，单选题/判断题选完后 1 秒自动下一题
             setTimeout(() => {

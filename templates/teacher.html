@@ -817,6 +817,65 @@ ${detailHtml}`);
                 alert('操作失败，请重试');
             }
         }
+        
+        // 查看学员详情（美化版）
+        async function viewStudentDetailNew(studentId) {
+            try {
+                const response = await fetch(`/api/teacher/student/${studentId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const student = result.student;
+                    const gridCompare = student.scoreDiff >= 0 
+                        ? `📈 高于网格平均 ${student.scoreDiff}分`
+                        : `📉 低于网格平均 ${Math.abs(student.scoreDiff)}分`;
+                    
+                    const html = `
+<div style="background:white;border-radius:15px;overflow:hidden;max-width:700px;margin:0 auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+<div style="background:linear-gradient(135deg,#0085D0,#00A8E6);color:white;padding:25px;text-align:center;">
+<div style="font-size:1.8em;font-weight:bold;margin-bottom:10px;">👨‍🎓 ${student.username}</div>
+<div style="font-size:1em;opacity:0.9;">📍 ${student.grid}网格</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:25px;background:#f8f9fa;">
+<div style="background:white;padding:20px;border-radius:12px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="font-size:2em;font-weight:bold;color:#0085D0;">${student.totalAnswers}</div><div style="font-size:0.85em;color:#666;margin-top:5px;">答题总数</div></div>
+<div style="background:white;padding:20px;border-radius:12px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="font-size:2em;font-weight:bold;color:#4CAF50;">${student.correctRate}%</div><div style="font-size:0.85em;color:#666;margin-top:5px;">正确率</div></div>
+<div style="background:white;padding:20px;border-radius:12px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="font-size:2em;font-weight:bold;color:#FF9800;">${student.avgScore}</div><div style="font-size:0.85em;color:#666;margin-top:5px;">平均分</div></div>
+</div>
+<div style="padding:25px;border-top:1px solid #eee;">
+<h3 style="color:#333;margin-bottom:15px;font-size:1.2em;">📊 考试成绩</h3>
+<div style="background:#f8f9fa;padding:15px;border-radius:10px;margin-bottom:15px;">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;">
+<div><div style="font-size:0.85em;color:#666;">考试次数</div><div style="font-size:1.3em;font-weight:bold;color:#0085D0;">${student.examCount}</div></div>
+<div><div style="font-size:0.85em;color:#666;">最高分</div><div style="font-size:1.3em;font-weight:bold;color:#4CAF50;">${student.maxScore}</div></div>
+<div><div style="font-size:0.85em;color:#666;">最低分</div><div style="font-size:1.3em;font-weight:bold;color:#f44336;">${student.minScore}</div></div>
+<div><div style="font-size:0.85em;color:#666;">网格平均</div><div style="font-size:1.3em;font-weight:bold;color:#9C27B0;">${student.gridAvgScore}</div></div>
+</div>
+<div style="margin-top:15px;padding-top:15px;border-top:1px solid #ddd;text-align:center;font-weight:bold;color:#2196F3;">${gridCompare}</div>
+</div>
+</div>
+<div style="padding:20px;text-align:center;border-top:1px solid #eee;background:#f8f9fa;">
+<button onclick="document.getElementById('studentDetailModal').style.display='none'" style="background:#0085D0;color:white;border:none;padding:12px 40px;border-radius:8px;font-size:1em;cursor:pointer;font-weight:bold;">关闭</button>
+</div>
+</div>`;
+                    
+                    let modal = document.getElementById('studentDetailModal');
+                    if (!modal) {
+                        modal = document.createElement('div');
+                        modal.id = 'studentDetailModal';
+                        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;padding:20px;';
+                        modal.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
+                        document.body.appendChild(modal);
+                    }
+                    modal.innerHTML = html;
+                    modal.style.display = 'block';
+                } else {
+                    alert('❌ 加载失败：' + result.message);
+                }
+            } catch (e) {
+                console.error('加载学员详情失败:', e);
+                alert('❌ 加载失败，请刷新页面重试');
+            }
+        }
     </script>
 </body>
 </html>

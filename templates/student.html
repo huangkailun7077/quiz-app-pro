@@ -736,15 +736,13 @@
                     </select>
                 </div>
                 
-                <!-- 顺序刷题组别选择 -->
-                <div id="sequentialGroupSelect" style="display:none;">
-                    <h3>📚 选择组别</h3>
+                <!-- 顺序刷题题号输入 -->
+                <div id="sequentialInputDiv" style="display:none;">
+                    <h3>📚 选择题号</h3>
                     <div class="select-group">
-                        <label>题组</label>
-                        <select id="sequentialGroupSelect">
-                            <!-- 动态生成 -->
-                        </select>
-                        <div style="font-size:0.85em;color:#666;margin-top:8px;">每 100 题为一组，按题号顺序练习</div>
+                        <label>从第几题开始</label>
+                        <input type="number" id="sequentialStartNum" min="1" max="9999" value="1" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:1em;margin-top:8px;">
+                        <div style="font-size:0.85em;color:#666;margin-top:8px;">输入题号，按顺序刷题（共 <span id="totalQuestionsCount">0</span> 题）</div>
                     </div>
                 </div>
                 

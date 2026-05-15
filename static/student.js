@@ -43,9 +43,16 @@ async function loadUserData() {
 // 加载题库
 async function loadQuestionsData() {
     try {
+        // 优先使用本地 QUESTIONS_DATA（如果存在）
+        if (typeof QUESTIONS_DATA !== 'undefined' && QUESTIONS_DATA.length > 0) {
+            questions = QUESTIONS_DATA;
+            console.log('题库加载完成（本地），共', questions.length, '题');
+            return;
+        }
+        // 否则从 API 加载
         const response = await fetch('/api/questions');
         questions = await response.json();
-        console.log('题库加载完成，共', questions.length, '题');
+        console.log('题库加载完成（API），共', questions.length, '题');
     } catch (e) {
         console.error('加载题库失败:', e);
         alert('加载题库失败，请刷新页面');
@@ -78,29 +85,19 @@ function goHome() {
 // 显示模式选择
 let selectedPracticeMode = '';
 let selectedRandomCount = 30; // 随机刷题题量
-let selectedSequentialGroup = 1; // 顺序刷题组别
+let selectedSequentialStart = 1; // 顺序刷题起始题号
 
 function showModeSelect(mode) {
     selectedPracticeMode = mode;
     document.getElementById('modeSelectTitle').textContent = mode === 'sequential' ? '顺序刷题' : '随机刷题';
     
-    // 顺序刷题显示组别选择
-    const sequentialDiv = document.getElementById('sequentialGroupSelect');
+    // 顺序刷题显示题号输入
+    const sequentialDiv = document.getElementById('sequentialInputDiv');
     if (mode === 'sequential') {
         sequentialDiv.style.display = 'block';
-        // 生成组别选项
-        const totalGroups = Math.ceil(questions.length / 100);
-        const groupSelect = document.getElementById('sequentialGroupSelect');
-        groupSelect.innerHTML = '';
-        for (let i = 1; i <= totalGroups; i++) {
-            const startNum = (i - 1) * 100 + 1;
-            const endNum = Math.min(i * 100, questions.length);
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = `第${i}组（${startNum}-${endNum}题）`;
-            groupSelect.appendChild(option);
-        }
-        selectedSequentialGroup = 1;
+        document.getElementById('totalQuestionsCount').textContent = questions.length;
+        document.getElementById('sequentialStartNum').max = questions.length;
+        selectedSequentialStart = 1;
     } else {
         sequentialDiv.style.display = 'none';
     }
@@ -134,9 +131,9 @@ function startPractice() {
     practiceMode = document.getElementById('practiceModeSelect').value;
     practiceAnswerCount = 0;
     
-    // 顺序刷题保存组别
+    // 顺序刷题保存起始题号
     if (selectedPracticeMode === 'sequential') {
-        selectedSequentialGroup = parseInt(document.getElementById('sequentialGroupSelect').value);
+        selectedSequentialStart = parseInt(document.getElementById('sequentialStartNum').value) || 1;
     }
     
     // 筛选题目
@@ -147,12 +144,11 @@ function startPractice() {
     }
     
     if (currentMode === 'sequential') {
-        // 顺序刷题：按 ID 排序，根据组别选择题目
+        // 顺序刷题：按 ID 排序，从指定题号开始
         filteredQuestions.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-        const groupStart = (selectedSequentialGroup - 1) * 100;
-        const groupEnd = groupStart + 100;
-        currentQuestions = filteredQuestions.slice(groupStart, groupEnd);
-        console.log('顺序刷题 - 组别:', selectedSequentialGroup, '题目范围:', groupStart + 1, '-', Math.min(groupEnd, filteredQuestions.length));
+        const startIndex = Math.max(0, selectedSequentialStart - 1);
+        currentQuestions = filteredQuestions.slice(startIndex);
+        console.log('顺序刷题 - 起始题号:', selectedSequentialStart, '剩余题目:', currentQuestions.length);
     } else if (currentMode === 'random') {
         // 随机刷题：按选择的题量
         const singleChoice = filteredQuestions.filter(q => q.type === '单选题');

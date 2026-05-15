@@ -949,12 +949,23 @@ function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
         <div id="examDetailsSection" style="display:none;"></div>
     `;
     
-    // 插入到页面顶部
+    // 插入到页面 - 使用全新容器避免缓存
     const container = document.getElementById('questionContainer');
+    console.log('[EXAM] 准备替换容器内容');
+    
+    // 先清空容器
+    if (container) {
+        container.innerHTML = '';
+        console.log('[EXAM] 容器已清空');
+    }
+    
+    // 插入新内容
     container.innerHTML = summaryHtml;
+    console.log('[EXAM] 新内容已插入');
     
     // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    console.log('[EXAM] 页面已滚动到顶部');
 }
 
 // 显示答题详情

@@ -514,8 +514,10 @@ function selectOption(letter) {
         // 如果是考试模式，记录答案并标记选项颜色
         if (currentMode === 'exam') {
             examAnswers[q.id] = multiSelectedAnswers.sort().join('');
+            console.log('多选题答案已记录:', q.id, '=', examAnswers[q.id]);
             // 更新题号导航
             updateQuestionNumbers();
+            console.log('题号导航已更新');
             // 标记已选选项为蓝色
             multiSelectedAnswers.forEach(l => {
                 const opt = document.getElementById(`option-${l}`);
@@ -535,8 +537,10 @@ function selectOption(letter) {
         // 如果是考试模式，记录答案并标记选项颜色
         if (currentMode === 'exam') {
             examAnswers[q.id] = letter;
+            console.log('单选题/判断题答案已记录:', q.id, '=', examAnswers[q.id]);
             // 更新题号导航
             updateQuestionNumbers();
+            console.log('题号导航已更新');
             // 标记已选选项为蓝色
             const selectedOpt = document.getElementById(`option-${letter}`);
             if (selectedOpt) {

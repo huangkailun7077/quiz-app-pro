@@ -891,13 +891,22 @@ function submitExam() {
             wrongIds: wrongIds
         })
     }).then(() => {
-        // 显示详细结果 - 保留答题页面并标注对错
+        console.log('[EXAM] 考试记录已保存，准备显示结果');
+        console.log('[EXAM] 分数:', score, '正确数:', correctCount, '总题数:', currentQuestions.length);
+        // 显示详细结果
+        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+    }).catch((e) => {
+        console.error('[EXAM] 保存考试记录失败:', e);
+        alert('保存考试记录失败，但成绩已计算：' + score + '分');
         showExamResultsWithDetails(score, correctCount, timeUsed, stats);
     });
 }
 
 // 显示考试结果（先显示分数和按钮）
 function showExamResultsWithDetails(score, correctCount, timeUsed, stats) {
+    console.log('[EXAM] showExamResultsWithDetails 被调用');
+    console.log('[EXAM] 当前容器:', document.getElementById('questionContainer') ? '找到' : '未找到');
+    
     // 隐藏考试导航和提交按钮
     document.getElementById('examTimerBar').classList.add('hidden');
     document.getElementById('examNav').classList.add('hidden');

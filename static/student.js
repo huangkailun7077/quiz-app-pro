@@ -553,13 +553,35 @@ function selectOption(letter) {
         document.getElementById(`option-${letter}`).classList.add('selected');
         selectedAnswer = letter;
         
-        // 如果是考试模式，记录答案并标记选项颜色
+        // 如果是考试模式，记录答案并立即更新小方块颜色
         if (currentMode === 'exam') {
             examAnswers[q.id] = letter;
-            console.log('单选题/判断题答案已记录:', q.id, '=', examAnswers[q.id]);
-            // 更新题号导航
-            updateQuestionNumbers();
-            console.log('题号导航已更新');
+            console.log('[EXAM] 答案已记录 - 题号:', currentIndex+1, '题目 ID:', q.id, '答案:', examAnswers[q.id]);
+            
+            // 直接更新当前题号的小方块颜色（立即生效）
+            const currentQNumEl = document.getElementById(`qnum-${currentIndex}`);
+            console.log('[EXAM] 查找题号元素 qnum-' + currentIndex + ':', currentQNumEl ? '找到' : '未找到');
+            
+            if (currentQNumEl) {
+                // 检查对错
+                const isCorrect = examAnswers[q.id] === q.answer;
+                console.log('[EXAM] 题号', currentIndex+1, '对错判断:', isCorrect, '用户答案:', examAnswers[q.id], '正确答案:', q.answer);
+                
+                if (isCorrect) {
+                    currentQNumEl.style.background = '#4CAF50';
+                    currentQNumEl.style.color = 'white';
+                    currentQNumEl.style.fontWeight = 'bold';
+                    console.log('[EXAM] ✓ 题号', currentIndex+1, '标记为绿色（答对）');
+                } else {
+                    currentQNumEl.style.background = '#f44336';
+                    currentQNumEl.style.color = 'white';
+                    currentQNumEl.style.fontWeight = 'bold';
+                    console.log('[EXAM] ✗ 题号', currentIndex+1, '标记为红色（答错）');
+                }
+            } else {
+                console.error('[EXAM] ✗ 找不到题号元素 qnum-' + currentIndex);
+            }
+            
             // 标记已选选项为蓝色
             const selectedOpt = document.getElementById(`option-${letter}`);
             if (selectedOpt) {

@@ -25,9 +25,6 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'xiaoling_quiz_system_2026_s
 DB_PATH = os.path.join(os.path.dirname(__file__), 'quiz.db')
 QUESTIONS_PATH = os.path.join(os.path.dirname(__file__), 'questions.json')
 
-# 初始化数据库（模块加载时自动执行）
-init_db()
-
 # 允许访问 uploads 目录
 @app.route('/uploads/<filename>')
 def serve_uploads(filename):
@@ -1080,6 +1077,9 @@ def api_questions_browse():
         'total_pages': total_pages,
         'questions': questions
     })
+
+# 初始化数据库（模块加载时自动执行，用于生产环境如 Render）
+init_db()
 
 if __name__ == '__main__':
     print("✨ 智慧家庭题库系统 - 专业版启动中...")

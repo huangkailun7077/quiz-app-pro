@@ -21,6 +21,14 @@ import io
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'xiaoling_quiz_system_2026_secret_key')
 
+# 禁止缓存静态资源和页面
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 # 数据库路径
 DB_PATH = os.path.join(os.path.dirname(__file__), 'quiz.db')
 QUESTIONS_PATH = os.path.join(os.path.dirname(__file__), 'questions.json')

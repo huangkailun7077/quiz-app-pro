@@ -84,7 +84,7 @@ def init_db():
                  ('hkl7077', 'system', datetime.now().isoformat()))
         conn.commit()
     
-    # 答题记录表
+    # 答题记录表（添加索引优化查询）
     c.execute('''
         CREATE TABLE IF NOT EXISTS answer_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,8 +98,10 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_answer_user ON answer_records(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_answer_created ON answer_records(created_at)')
     
-    # 考试记录表
+    # 考试记录表（添加索引优化查询）
     c.execute('''
         CREATE TABLE IF NOT EXISTS exam_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,6 +116,8 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_exam_user ON exam_records(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_exam_created ON exam_records(created_at)')
     
     # 刷题记录表
     c.execute('''
@@ -127,6 +131,7 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_practice_user ON practice_records(user_id)')
     
     # 错题表
     c.execute('''
@@ -138,6 +143,7 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_wrong_user ON wrong_questions(user_id)')
     
     # 收藏表
     c.execute('''
@@ -149,6 +155,7 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_favorite_user ON favorite_questions(user_id)')
     
     conn.commit()
     conn.close()

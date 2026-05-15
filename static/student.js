@@ -1,6 +1,6 @@
 /**
  * 学员端 JS
- * 小灵 ✨ 出品
+ * Alan 出品
  */
 
 let questions = [];

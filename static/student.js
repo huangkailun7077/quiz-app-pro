@@ -816,27 +816,34 @@ function startExamTimer() {
 
 // 提交考试
 function submitExam() {
+    console.log('[EXAM] submitExam 被调用');
+    
     if (examTimerInterval) {
         clearInterval(examTimerInterval);
         examTimerInterval = null;
     }
     
     // 隐藏考试导航
-    document.getElementById('examTimerBar').classList.add('hidden');
-    document.getElementById('examNav').classList.add('hidden');
-    document.getElementById('submitExamBtn').style.display = 'none';
+    const timerBar = document.getElementById('examTimerBar');
+    const examNav = document.getElementById('examNav');
+    const submitBtn = document.getElementById('submitExamBtn');
+    
+    if (timerBar) timerBar.classList.add('hidden');
+    if (examNav) examNav.classList.add('hidden');
+    if (submitBtn) submitBtn.style.display = 'none';
     
     // 检查是否有未答题
     const unansweredCount = currentQuestions.length - Object.keys(examAnswers).length;
     if (unansweredCount > 0) {
         if (!confirm(`还有 ${unansweredCount} 道题未答，确定要交卷吗？`)) {
-            // 恢复显示
-            document.getElementById('examTimerBar').classList.remove('hidden');
-            document.getElementById('examNav').classList.remove('hidden');
-            document.getElementById('submitExamBtn').style.display = 'inline-block';
+            if (timerBar) timerBar.classList.remove('hidden');
+            if (examNav) examNav.classList.remove('hidden');
+            if (submitBtn) submitBtn.style.display = 'inline-block';
             return;
         }
     }
+    
+    console.log('[EXAM] 开始计算分数，总题数:', currentQuestions.length);
     
     // 计算分数
     let correctCount = 0;
@@ -845,6 +852,7 @@ function submitExam() {
     
     currentQuestions.forEach((q, index) => {
         const userAnswer = examAnswers[q.id];
+        console.log('[EXAM] 题号', index+1, '用户答案:', userAnswer, '正确答案:', q.answer, '题型:', q.type);
         
         // 判断题特殊处理：用户答案是 A/B，正确答案是 正确/错误
         let isCorrect = false;
@@ -878,6 +886,8 @@ function submitExam() {
     const score = (correctCount / currentQuestions.length * 100).toFixed(1);
     const timeUsed = Math.floor((Date.now() - examStartTime) / 1000);
     
+    console.log('[EXAM] 计算完成 - 分数:', score, '正确数:', correctCount, '用时:', timeUsed, '秒');
+    
     // 保存到后端
     fetch('/api/save_exam', {
         method: 'POST',
@@ -890,10 +900,20 @@ function submitExam() {
             stats: stats,
             wrongIds: wrongIds
         })
-    }).then(() => {
-        console.log('[EXAM] 考试记录已保存，准备显示结果');
-        console.log('[EXAM] 分数:', score, '正确数:', correctCount, '总题数:', currentQuestions.length);
+    })
+    .then(response => {
+        console.log('[EXAM] 后端响应:', response.status);
+        return response.json();
+    })
+    .then(result => {
+        console.log('[EXAM] 后端返回:', result);
+        console.log('[EXAM] 准备显示结果页面');
         // 显示详细结果
+        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+    })
+    .catch(e => {
+        console.error('[EXAM] 保存考试记录失败:', e);
+        // 即使保存失败也显示结果
         showExamResultsWithDetails(score, correctCount, timeUsed, stats);
     });
 }

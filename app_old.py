@@ -10,7 +10,8 @@ Alan伦 ✨ 出品
 """
 
 from flask import Flask, render_template, request, jsonify, session, send_file, redirect, url_for
-from db_adapter import get_db, init_db, USE_POSTGRES
+import sqlite3
+import psycopg2
 import json
 import os
 import hashlib
@@ -30,15 +31,22 @@ def add_no_cache_headers(response):
     response.headers['Expires'] = '0'
     return response
 
-# 题库路径
+# 数据库路径
+DB_PATH = os.path.join(os.path.dirname(__file__), 'quiz.db')
 QUESTIONS_PATH = os.path.join(os.path.dirname(__file__), 'questions.json')
 
-# 初始化数据库（延迟到应用启动时）
-try:
-    init_db()
-except Exception as e:
-    print(f'⚠️  数据库初始化失败：{e}')
-    print('应用将继续运行，但数据库功能可能不可用')
+# 数据库配置 - 支持 PostgreSQL 和 SQLite
+DATABASE_URL = os.environ.get('DATABASE_URL')
+USE_POSTGRES = DATABASE_URL is not None
+
+def get_db_connection():
+    """获取数据库连接 - 自动选择 PostgreSQL 或 SQLite"""
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        return conn
 
 # 允许访问 uploads 目录
 @app.route('/uploads/<filename>')
@@ -51,12 +59,132 @@ def serve_uploads(filename):
 def access_guide():
     return render_template('access.html')
 
+# 数据库初始化
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # 用户表
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            grid TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL DEFAULT 'student',
+            created_at TEXT NOT NULL
+        )
+    ''')
+    
+    # 检查是否需要添加 grid 字段（旧数据库迁移）
+    c.execute('PRAGMA table_info(users)')
+    columns = [col[1] for col in c.fetchall()]
+    if 'grid' not in columns:
+        c.execute('ALTER TABLE users ADD COLUMN grid TEXT NOT NULL DEFAULT ""')
+        conn.commit()
+    
+    # 老师授权表（记录哪些用户可以当老师）
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS teacher_auth (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            granted_by TEXT NOT NULL,
+            granted_at TEXT NOT NULL
+        )
+    ''')
+    
+    # 默认授权 hkl7077 为老师
+    c.execute('SELECT * FROM teacher_auth WHERE username = ?', ('hkl7077',))
+    if not c.fetchone():
+        c.execute('INSERT INTO teacher_auth (username, granted_by, granted_at) VALUES (?, ?, ?)',
+                 ('hkl7077', 'system', datetime.now().isoformat()))
+        conn.commit()
+    
+    # 答题记录表（添加索引优化查询）
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS answer_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            question_id TEXT NOT NULL,
+            question_type TEXT NOT NULL,
+            user_answer TEXT NOT NULL,
+            correct_answer TEXT NOT NULL,
+            is_correct INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_answer_user ON answer_records(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_answer_created ON answer_records(created_at)')
+    
+    # 考试记录表（添加索引优化查询）
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS exam_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            score REAL NOT NULL,
+            correct_count INTEGER NOT NULL,
+            total_count INTEGER NOT NULL,
+            time_used INTEGER NOT NULL,
+            stats TEXT NOT NULL,
+            wrong_ids TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_exam_user ON exam_records(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_exam_created ON exam_records(created_at)')
+    
+    # 刷题记录表
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS practice_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            mode TEXT NOT NULL,
+            question_type TEXT NOT NULL,
+            question_count INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_practice_user ON practice_records(user_id)')
+    
+    # 错题表
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS wrong_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            question_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_wrong_user ON wrong_questions(user_id)')
+    
+    # 收藏表
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS favorite_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            question_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_favorite_user ON favorite_questions(user_id)')
+    
+    conn.commit()
+    conn.close()
 
 # 加载题库
 def load_questions():
     with open(QUESTIONS_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+# 获取数据库连接
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # 首页
 @app.route('/')
@@ -82,38 +210,40 @@ def login():
     # 老师账号检查：必须是 hkl7077 或在授权列表中
     if role == 'teacher':
         if username != 'hkl7077':
-            db = get_db()
-            db.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
-            auth = db.fetchone()
-            db.close()
+            conn = get_db()
+            c = conn.cursor()
+            c.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
+            auth = c.fetchone()
+            conn.close()
             
             if not auth:
                 return jsonify({'success': False, 'message': '您没有老师权限，请联系管理员授权'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 查找或创建用户
-    db.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = db.fetchone()
+    c.execute('SELECT * FROM users WHERE username = ?', (username,))
+    user = c.fetchone()
     
     if not user:
         # 创建新用户
         created_at = datetime.now().isoformat()
-        db.execute('INSERT INTO users (username, grid, role, created_at) VALUES (?, ?, ?, ?)',
+        c.execute('INSERT INTO users (username, grid, role, created_at) VALUES (?, ?, ?, ?)',
                  (username, grid, role, created_at))
-        db.commit()
-        user_id = db.lastrowid()
+        conn.commit()
+        user_id = c.lastrowid
     else:
         user_id = user['id']
         # 更新角色和网格（如果是老师登录或网格为空）
         if role == 'teacher' and user['role'] != 'teacher':
-            db.execute('UPDATE users SET role = ?, grid = ? WHERE id = ?', ('teacher', grid, user_id))
-            db.commit()
+            c.execute('UPDATE users SET role = ?, grid = ? WHERE id = ?', ('teacher', grid, user_id))
+            conn.commit()
         elif not user['grid'] and grid:
-            db.execute('UPDATE users SET grid = ? WHERE id = ?', (grid, user_id))
-            db.commit()
+            c.execute('UPDATE users SET grid = ? WHERE id = ?', (grid, user_id))
+            conn.commit()
     
-    db.close()
+    conn.close()
     
     session['user_id'] = user_id
     session['username'] = username
@@ -157,10 +287,11 @@ def api_save_answer():
     data = request.json
     user_id = session['user_id']
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 保存答题记录
-    db.execute('''
+    c.execute('''
         INSERT INTO answer_records (user_id, question_id, question_type, user_answer, correct_answer, is_correct, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (user_id, data['questionId'], data['questionType'], data['userAnswer'], 
@@ -168,13 +299,13 @@ def api_save_answer():
     
     # 如果是错题，加入错题本
     if not data['isCorrect']:
-        db.execute('''
+        c.execute('''
             INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
             VALUES (?, ?, ?)
         ''', (user_id, data['questionId'], datetime.now().isoformat()))
     
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True})
 
@@ -187,10 +318,11 @@ def api_save_exam():
     data = request.json
     user_id = session['user_id']
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 保存考试记录
-    db.execute('''
+    c.execute('''
         INSERT INTO exam_records (user_id, score, correct_count, total_count, time_used, stats, wrong_ids, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (user_id, data['score'], data['correctCount'], data['totalCount'], 
@@ -199,13 +331,13 @@ def api_save_exam():
     
     # 错题加入错题本
     for qid in data['wrongIds']:
-        db.execute('''
+        c.execute('''
             INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
             VALUES (?, ?, ?)
         ''', (user_id, qid, datetime.now().isoformat()))
     
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True})
 
@@ -218,16 +350,17 @@ def api_save_practice():
     data = request.json
     user_id = session['user_id']
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
-    db.execute('''
+    c.execute('''
         INSERT INTO practice_records (user_id, mode, question_type, question_count, created_at)
         VALUES (?, ?, ?, ?, ?)
     ''', (user_id, data['mode'], data['questionType'], data['questionCount'], 
           datetime.now().isoformat()))
     
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True})
 
@@ -241,27 +374,28 @@ def api_toggle_favorite():
     user_id = session['user_id']
     question_id = data['questionId']
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 检查是否已收藏
-    db.execute('SELECT id FROM favorite_questions WHERE user_id = ? AND question_id = ?', 
+    c.execute('SELECT id FROM favorite_questions WHERE user_id = ? AND question_id = ?', 
               (user_id, question_id))
-    existing = db.fetchone()
+    existing = c.fetchone()
     
     if existing:
         # 取消收藏
-        db.execute('DELETE FROM favorite_questions WHERE id = ?', (existing['id'],))
+        c.execute('DELETE FROM favorite_questions WHERE id = ?', (existing['id'],))
         action = 'removed'
     else:
         # 加入收藏
-        db.execute('''
+        c.execute('''
             INSERT INTO favorite_questions (user_id, question_id, created_at)
             VALUES (?, ?, ?)
         ''', (user_id, question_id, datetime.now().isoformat()))
         action = 'added'
     
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True, 'action': action})
 
@@ -272,32 +406,33 @@ def api_student_stats():
         return jsonify({'success': False, 'message': '请先登录'})
     
     user_id = session['user_id']
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 答题总数和正确率
-    db.execute('''
+    c.execute('''
         SELECT COUNT(*) as total, SUM(is_correct) as correct
         FROM answer_records WHERE user_id = ?
     ''', (user_id,))
-    answer_stats = db.fetchone()
+    answer_stats = c.fetchone()
     
     # 考试次数
-    db.execute('SELECT COUNT(*) FROM exam_records WHERE user_id = ?', (user_id,))
-    exam_count = db.fetchone()[0]
+    c.execute('SELECT COUNT(*) FROM exam_records WHERE user_id = ?', (user_id,))
+    exam_count = c.fetchone()[0]
     
     # 刷题次数
-    db.execute('SELECT COUNT(*) FROM practice_records WHERE user_id = ?', (user_id,))
-    practice_count = db.fetchone()[0]
+    c.execute('SELECT COUNT(*) FROM practice_records WHERE user_id = ?', (user_id,))
+    practice_count = c.fetchone()[0]
     
     # 错题数
-    db.execute('SELECT COUNT(DISTINCT question_id) FROM wrong_questions WHERE user_id = ?', (user_id,))
-    wrong_count = db.fetchone()[0]
+    c.execute('SELECT COUNT(DISTINCT question_id) FROM wrong_questions WHERE user_id = ?', (user_id,))
+    wrong_count = c.fetchone()[0]
     
     # 收藏数
-    db.execute('SELECT COUNT(DISTINCT question_id) FROM favorite_questions WHERE user_id = ?', (user_id,))
-    favorite_count = db.fetchone()[0]
+    c.execute('SELECT COUNT(DISTINCT question_id) FROM favorite_questions WHERE user_id = ?', (user_id,))
+    favorite_count = c.fetchone()[0]
     
-    db.close()
+    conn.close()
     
     total = answer_stats['total'] or 0
     correct = answer_stats['correct'] or 0
@@ -323,9 +458,10 @@ def api_student_exams():
         return jsonify({'success': False, 'message': '请先登录'})
     
     user_id = session['user_id']
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
-    db.execute('''
+    c.execute('''
         SELECT * FROM exam_records 
         WHERE user_id = ? 
         ORDER BY created_at DESC 
@@ -333,7 +469,7 @@ def api_student_exams():
     ''', (user_id,))
     
     exams = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         exams.append({
             'id': row['id'],
             'score': row['score'],
@@ -344,7 +480,7 @@ def api_student_exams():
             'createdAt': row['created_at']
         })
     
-    db.close()
+    conn.close()
     return jsonify({'success': True, 'exams': exams})
 
 # 学员：获取错题集
@@ -354,24 +490,25 @@ def api_student_wrong():
         return jsonify({'success': False, 'message': '请先登录'})
     
     user_id = session['user_id']
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 获取错题（去重）
-    db.execute('''
+    c.execute('''
         SELECT DISTINCT w.question_id, w.created_at
         FROM wrong_questions w
         WHERE w.user_id = ?
         ORDER BY w.created_at DESC
     ''', (user_id,))
     
-    wrong_ids = [row['question_id'] for row in db.fetchall()]
+    wrong_ids = [row['question_id'] for row in c.fetchall()]
     
     # 从题库中获取题目详情
     try:
         with open(QUESTIONS_PATH, 'r', encoding='utf-8') as f:
             all_questions = json.load(f)
     except:
-        db.close()
+        conn.close()
         return jsonify({'success': False, 'message': '加载题库失败'})
     
     wrong_questions = []
@@ -385,7 +522,7 @@ def api_student_wrong():
                 'answer': q['answer']
             })
     
-    db.close()
+    conn.close()
     
     return jsonify({
         'success': True,
@@ -400,11 +537,12 @@ def api_student_wrong_clear():
         return jsonify({'success': False, 'message': '请先登录'})
     
     user_id = session['user_id']
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
-    db.execute('DELETE FROM wrong_questions WHERE user_id = ?', (user_id,))
-    db.commit()
-    db.close()
+    c.execute('DELETE FROM wrong_questions WHERE user_id = ?', (user_id,))
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True, 'message': '错题集已清空'})
 
@@ -414,9 +552,10 @@ def api_teacher_students():
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
-    db.execute('''
+    c.execute('''
         SELECT u.id, u.username, u.created_at,
                COUNT(DISTINCT a.id) as answer_count,
                COUNT(DISTINCT e.id) as exam_count,
@@ -433,7 +572,7 @@ def api_teacher_students():
     ''')
     
     students = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         students.append({
             'id': row['id'],
             'username': row['username'],
@@ -444,7 +583,7 @@ def api_teacher_students():
             'wrongCount': row['wrong_count']
         })
     
-    db.close()
+    conn.close()
     return jsonify({'success': True, 'students': students})
 
 # 老师：删除学员
@@ -453,17 +592,18 @@ def api_delete_student(student_id):
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 删除答题记录
-    db.execute('DELETE FROM answer_records WHERE user_id = ?', (student_id,))
+    c.execute('DELETE FROM answer_records WHERE user_id = ?', (student_id,))
     # 删除考试记录
-    db.execute('DELETE FROM exam_records WHERE user_id = ?', (student_id,))
+    c.execute('DELETE FROM exam_records WHERE user_id = ?', (student_id,))
     # 删除用户
-    db.execute('DELETE FROM users WHERE id = ? AND role = ?', (student_id, 'student'))
+    c.execute('DELETE FROM users WHERE id = ? AND role = ?', (student_id, 'student'))
     
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True, 'message': '学员已删除'})
 
@@ -473,25 +613,26 @@ def api_teacher_student_detail(student_id):
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 学员基本信息
-    db.execute('SELECT * FROM users WHERE id = ? AND role = "student"', (student_id,))
-    student = db.fetchone()
+    c.execute('SELECT * FROM users WHERE id = ? AND role = "student"', (student_id,))
+    student = c.fetchone()
     
     if not student:
-        db.close()
+        conn.close()
         return jsonify({'success': False, 'message': '学员不存在'})
     
     # 答题统计
-    db.execute('''
+    c.execute('''
         SELECT COUNT(*) as total, SUM(is_correct) as correct
         FROM answer_records WHERE user_id = ?
     ''', (student_id,))
-    answer_stats = db.fetchone()
+    answer_stats = c.fetchone()
     
     # 考试成绩统计
-    db.execute('''
+    c.execute('''
         SELECT 
             COUNT(*) as exam_count,
             AVG(score) as avg_score,
@@ -500,10 +641,10 @@ def api_teacher_student_detail(student_id):
         FROM exam_records 
         WHERE user_id = ?
     ''', (student_id,))
-    exam_stats = db.fetchone()
+    exam_stats = c.fetchone()
     
     # 最近 20 次考试记录
-    db.execute('''
+    c.execute('''
         SELECT * FROM exam_records 
         WHERE user_id = ? 
         ORDER BY created_at DESC 
@@ -511,7 +652,7 @@ def api_teacher_student_detail(student_id):
     ''', (student_id,))
     
     exams = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         exams.append({
             'id': row['id'],
             'score': row['score'],
@@ -523,16 +664,16 @@ def api_teacher_student_detail(student_id):
     
     # 同网格平均成绩对比
     grid = student['grid']
-    db.execute('''
+    c.execute('''
         SELECT AVG(e.score) as grid_avg
         FROM exam_records e
         JOIN users u ON e.user_id = u.id
         WHERE u.grid = ? AND u.role = "student"
     ''', (grid,))
-    grid_avg_result = db.fetchone()
+    grid_avg_result = c.fetchone()
     grid_avg = round(grid_avg_result['grid_avg'], 1) if grid_avg_result and grid_avg_result['grid_avg'] else 0
     
-    db.close()
+    conn.close()
     
     total = answer_stats['total'] or 0
     correct = answer_stats['correct'] or 0
@@ -566,10 +707,11 @@ def api_teacher_student_details(student_id):
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 刷题记录
-    db.execute('''
+    c.execute('''
         SELECT mode, question_type, question_count, created_at
         FROM practice_records
         WHERE user_id = ?
@@ -578,7 +720,7 @@ def api_teacher_student_details(student_id):
     ''', (student_id,))
     
     practice = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         practice.append({
             'mode': row['mode'],
             'question_type': row['question_type'],
@@ -587,7 +729,7 @@ def api_teacher_student_details(student_id):
         })
     
     # 考试记录
-    db.execute('''
+    c.execute('''
         SELECT score, correct_count, total_count, time_used, created_at
         FROM exam_records
         WHERE user_id = ?
@@ -596,7 +738,7 @@ def api_teacher_student_details(student_id):
     ''', (student_id,))
     
     exams = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         exams.append({
             'score': row['score'],
             'correct_count': row['correct_count'],
@@ -606,7 +748,7 @@ def api_teacher_student_details(student_id):
         })
     
     # 答题记录（按题型统计）
-    db.execute('''
+    c.execute('''
         SELECT question_type, COUNT(*) as count, SUM(is_correct) as correct
         FROM answer_records
         WHERE user_id = ?
@@ -614,14 +756,14 @@ def api_teacher_student_details(student_id):
     ''', (student_id,))
     
     by_type = {}
-    for row in db.fetchall():
+    for row in c.fetchall():
         by_type[row['question_type']] = {
             'count': row['count'],
             'correct': row['correct'] or 0,
             'rate': round(((row['correct'] or 0) / row['count'] * 100), 1) if row['count'] > 0 else 0
         }
     
-    db.close()
+    conn.close()
     
     return jsonify({
         'success': True,
@@ -636,10 +778,11 @@ def api_teacher_export():
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 获取所有学员数据
-    db.execute('''
+    c.execute('''
         SELECT u.id, u.username, u.created_at,
                COUNT(DISTINCT a.id) as answer_count,
                SUM(a.is_correct) as correct_count,
@@ -655,7 +798,7 @@ def api_teacher_export():
     ''')
     
     students_data = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         total = row['answer_count'] or 0
         correct = row['correct_count'] or 0
         correct_rate = round((correct / total * 100), 1) if total > 0 else 0
@@ -671,7 +814,7 @@ def api_teacher_export():
         })
     
     # 获取详细学习记录
-    db.execute('''
+    c.execute('''
         SELECT u.username, p.mode, p.question_type, p.question_count, p.created_at
         FROM practice_records p
         JOIN users u ON p.user_id = u.id
@@ -680,7 +823,7 @@ def api_teacher_export():
     ''')
     
     practice_records = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         practice_records.append({
             '学员名': row['username'],
             '学习模式': row['mode'],
@@ -690,7 +833,7 @@ def api_teacher_export():
         })
     
     # 获取详细考试记录
-    db.execute('''
+    c.execute('''
         SELECT u.username, e.score, e.correct_count, e.total_count, e.time_used, e.created_at
         FROM exam_records e
         JOIN users u ON e.user_id = u.id
@@ -699,7 +842,7 @@ def api_teacher_export():
     ''')
     
     exam_records = []
-    for row in db.fetchall():
+    for row in c.fetchall():
         exam_records.append({
             '学员名': row['username'],
             '分数': row['score'],
@@ -709,7 +852,7 @@ def api_teacher_export():
             '考试时间': row['created_at'][:19].replace('T', ' ')
         })
     
-    db.close()
+    conn.close()
     
     # 创建 Excel（多个 sheet）
     df_summary = pd.DataFrame(students_data)
@@ -776,10 +919,11 @@ def api_teacher_list():
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
-    db.execute('SELECT * FROM teacher_auth ORDER BY granted_at DESC')
-    teachers = db.fetchall()
-    db.close()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM teacher_auth ORDER BY granted_at DESC')
+    teachers = c.fetchall()
+    conn.close()
     
     return jsonify({
         'success': True,
@@ -799,17 +943,18 @@ def api_add_teacher():
         return jsonify({'success': False, 'message': '请输入用户名'})
     
     # 检查是否已存在
-    db = get_db()
-    db.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
-    if db.fetchone():
-        db.close()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
+    if c.fetchone():
+        conn.close()
         return jsonify({'success': False, 'message': '该用户已是老师'})
     
     # 添加授权
-    db.execute('INSERT INTO teacher_auth (username, granted_by, granted_at) VALUES (?, ?, ?)',
+    c.execute('INSERT INTO teacher_auth (username, granted_by, granted_at) VALUES (?, ?, ?)',
              (username, session['username'], datetime.now().isoformat()))
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True, 'message': f'已授权 {username} 为老师'})
 
@@ -829,10 +974,11 @@ def api_remove_teacher():
     if username == session['username']:
         return jsonify({'success': False, 'message': '不能取消自己的老师权限'})
     
-    db = get_db()
-    db.execute('DELETE FROM teacher_auth WHERE username = ?', (username,))
-    db.commit()
-    db.close()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM teacher_auth WHERE username = ?', (username,))
+    conn.commit()
+    conn.close()
     
     return jsonify({'success': True, 'message': f'已取消 {username} 的老师权限'})
 
@@ -844,7 +990,8 @@ def api_grid_analysis():
     if 'user_id' not in session or session['role'] != 'teacher':
         return jsonify({'success': False, 'message': '权限不足'})
     
-    db = get_db()
+    conn = get_db()
+    c = conn.cursor()
     
     # 获取所有网格
     grids = ['白洋湾', '金阊', '虎丘', '平江', '苏锦', '沧浪', '双塔', '吴门桥', '后台']
@@ -852,32 +999,32 @@ def api_grid_analysis():
     analysis = []
     for grid in grids:
         # 学员数
-        db.execute('SELECT COUNT(*) as count FROM users WHERE grid = ? AND role = ?', (grid, 'student'))
-        student_count = db.fetchone()['count']
+        c.execute('SELECT COUNT(*) as count FROM users WHERE grid = ? AND role = ?', (grid, 'student'))
+        student_count = c.fetchone()['count']
         
         # 答题总数
-        db.execute('''
+        c.execute('''
             SELECT COUNT(*) as count FROM answer_records ar
             JOIN users u ON ar.user_id = u.id
             WHERE u.grid = ?
         ''', (grid,))
-        answer_count = db.fetchone()['count'] or 0
+        answer_count = c.fetchone()['count'] or 0
         
         # 正确数
-        db.execute('''
+        c.execute('''
             SELECT COUNT(*) as count FROM answer_records ar
             JOIN users u ON ar.user_id = u.id
             WHERE u.grid = ? AND ar.is_correct = 1
         ''', (grid,))
-        correct_count = db.fetchone()['count'] or 0
+        correct_count = c.fetchone()['count'] or 0
         
         # 考试次数
-        db.execute('''
+        c.execute('''
             SELECT COUNT(*) as count FROM exam_records e
             JOIN users u ON e.user_id = u.id
             WHERE u.grid = ?
         ''', (grid,))
-        exam_count = db.fetchone()['count'] or 0
+        exam_count = c.fetchone()['count'] or 0
         
         # 计算正确率
         correct_rate = round((correct_count / answer_count * 100), 1) if answer_count > 0 else 0
@@ -891,7 +1038,7 @@ def api_grid_analysis():
             'examCount': exam_count
         })
     
-    db.close()
+    conn.close()
     
     return jsonify({
         'success': True,
@@ -961,8 +1108,12 @@ def api_questions_browse():
         'questions': questions
     })
 
+# 初始化数据库（模块加载时自动执行，用于生产环境如 Render）
+init_db()
+
 if __name__ == '__main__':
     print("✨ 智慧家庭题库系统 - 专业版启动中...")
+    print("✅ 数据库已初始化")
     port = int(os.environ.get('PORT', 5002))
     print(f"🌐 服务运行在端口 {port}")
     print("🚀 服务运行中...")

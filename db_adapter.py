@@ -287,7 +287,18 @@ def get_db():
 def init_db():
     """初始化数据库表"""
     db = DatabaseAdapter()
-    db.connect()
-    db.init_tables()
-    db.close()
+    try:
+        db.connect()
+        db.init_tables()
+        db_type = "PostgreSQL" if db.use_postgres else "SQLite"
+        print(f'✅ 数据库初始化成功（使用 {db_type}）')
+        if db.use_postgres:
+            print('🎉 数据将永久保存！')
+        else:
+            print('⚠️  警告：使用 SQLite，重启后数据可能丢失')
+    except Exception as e:
+        print(f'❌ 数据库初始化失败：{e}')
+        raise
+    finally:
+        db.close()
     return db

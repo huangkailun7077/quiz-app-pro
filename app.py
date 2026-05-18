@@ -74,11 +74,17 @@ def debug_db():
         db = get_db()
         db.execute('SELECT COUNT(*) FROM users')
         count = db.fetchone()
+        db.execute('SELECT COUNT(*) FROM exam_records')
+        exam_count = db.fetchone()
+        db.execute('SELECT COUNT(*) FROM answer_records')
+        answer_count = db.fetchone()
         db.close()
         return jsonify({
             'success': True,
             'database': 'PostgreSQL' if USE_POSTGRES else 'SQLite',
             'user_count': count[0] if count else 0,
+            'exam_count': exam_count[0] if exam_count else 0,
+            'answer_count': answer_count[0] if answer_count else 0,
             'status': 'connected'
         })
     except Exception as e:

@@ -689,6 +689,7 @@ async function checkAnswer() {
             await fetch('/api/save_answer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // 🔑 携带 Cookie
                 body: JSON.stringify({
                     questionId: q.id,
                     questionType: q.type,
@@ -715,6 +716,7 @@ async function checkAnswer() {
         await fetch('/api/save_answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // 🔑 携带 Cookie
             body: JSON.stringify({
                 questionId: q.id,
                 questionType: q.type,
@@ -831,6 +833,7 @@ async function savePracticeRecord() {
         await fetch('/api/save_practice', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // 🔑 携带 Cookie
             body: JSON.stringify({
                 mode: currentMode,
                 questionType: currentType,
@@ -956,6 +959,8 @@ function submitExam() {
     fetch('/api/save_exam', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // 🔑 携带 Cookie
+        credentials: 'include', // 🔑 携带 Cookie（Session）
         body: JSON.stringify({
             score: parseFloat(score),
             correctCount: correctCount,

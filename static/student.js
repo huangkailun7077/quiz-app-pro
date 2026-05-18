@@ -50,20 +50,37 @@ async function loadUserData() {
 
 // 加载题库
 async function loadQuestionsData() {
+    console.log('[QUESTIONS] 开始加载题库...');
+    
     try {
         // 优先使用本地 QUESTIONS_DATA（如果存在）
         if (typeof QUESTIONS_DATA !== 'undefined' && QUESTIONS_DATA.length > 0) {
             questions = QUESTIONS_DATA;
-            console.log('题库加载完成（本地），共', questions.length, '题');
+            console.log('[QUESTIONS] ✅ 题库加载完成（本地），共', questions.length, '题');
             return;
         }
         // 否则从 API 加载
+        console.log('[QUESTIONS] 从 API 加载题库...');
         const response = await fetch('/api/questions');
+        console.log('[QUESTIONS] API 响应状态:', response.status);
+        
+        if (!response.ok) {
+            throw new Error('API 响应失败：' + response.status);
+        }
+        
         questions = await response.json();
-        console.log('题库加载完成（API），共', questions.length, '题');
+        console.log('[QUESTIONS] ✅ 题库加载完成（API），共', questions.length, '题');
+        
+        // 验证题型分布
+        const singleCount = questions.filter(q => q.type === '单选题').length;
+        const multiCount = questions.filter(q => q.type === '多选题').length;
+        const judgeCount = questions.filter(q => q.type === '判断题').length;
+        console.log('[QUESTIONS] 题型分布 - 单选:', singleCount, '多选:', multiCount, '判断:', judgeCount);
+        
     } catch (e) {
-        console.error('加载题库失败:', e);
-        alert('加载题库失败，请刷新页面');
+        console.error('[QUESTIONS] ❌ 加载题库失败:', e);
+        alert('加载题库失败，请刷新页面重试');
+        throw e; // 重新抛出错误，让调用者知道加载失败
     }
 }
 
@@ -218,6 +235,27 @@ function startPractice() {
 
 // 显示考试确认
 function showExamConfirm() {
+    console.log('[EXAM] showExamConfirm 被调用');
+    console.log('[EXAM] 当前题库状态:', questions ? `已加载 ${questions.length} 题` : '未加载');
+    
+    // 检查题库是否已加载
+    if (!questions || questions.length === 0) {
+        alert('⚠️ 题库数据正在加载中...\n\n请稍等片刻后重试，或刷新页面');
+        return;
+    }
+    
+    // 检查题型分布
+    const singleCount = questions.filter(q => q.type === '单选题').length;
+    const multiCount = questions.filter(q => q.type === '多选题').length;
+    const judgeCount = questions.filter(q => q.type === '判断题').length;
+    
+    console.log('[EXAM] 题型分布 - 单选:', singleCount, '多选:', multiCount, '判断:', judgeCount);
+    
+    if (singleCount < 60 || multiCount < 20 || judgeCount < 20) {
+        alert(`⚠️ 题库题目数量不足！\n\n单选题：${singleCount}/60\n多选题：${multiCount}/20\n判断题：${judgeCount}/20\n\n请联系管理员更新题库`);
+        return;
+    }
+    
     if (!confirm('⏱️ 模拟考试\n\n- 60 分钟\n- 100 道题（60 单选 +20 多选 +20 判断）\n- 满分 100 分\n\n确定开始考试吗？')) {
         return;
     }
@@ -226,18 +264,27 @@ function showExamConfirm() {
 
 // 开始考试
 function startExam() {
-    console.log('开始考试，题库总数:', questions.length);
+    console.log('[EXAM] startExam 被调用');
+    console.log('[EXAM] 当前题库总数:', questions.length);
+    
+    // 检查题库是否已加载
+    if (!questions || questions.length === 0) {
+        alert('⚠️ 题库数据未加载完成！\n\n请刷新页面后重试');
+        console.error('[EXAM] 题库为空，无法开始考试');
+        return;
+    }
     
     // 从题库随机抽题
     const singleChoice = questions.filter(q => q.type === '单选题');
     const multiChoice = questions.filter(q => q.type === '多选题');
     const trueFalse = questions.filter(q => q.type === '判断题');
     
-    console.log('题型统计 - 单选题:', singleChoice.length, '多选题:', multiChoice.length, '判断题:', trueFalse.length);
+    console.log('[EXAM] 题型统计 - 单选题:', singleChoice.length, '多选题:', multiChoice.length, '判断题:', trueFalse.length);
     
     // 检查题库数量
     if (singleChoice.length < 60 || multiChoice.length < 20 || trueFalse.length < 20) {
         alert(`题库题目数量不足！\n单选题：${singleChoice.length}/60\n多选题：${multiChoice.length}/20\n判断题：${trueFalse.length}/20`);
+        console.error('[EXAM] 题库数量不足，无法开始考试');
         return;
     }
     

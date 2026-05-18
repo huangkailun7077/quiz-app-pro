@@ -891,33 +891,52 @@ function submitExam() {
     
     console.log('[EXAM] 计算完成 - 分数:', score, '正确数:', correctCount, '用时:', timeUsed, '秒');
     
-    // 保存到后端
-    fetch('/api/save_exam', {
-        credentials: 'include',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            score: parseFloat(score),
-            correctCount: correctCount,
-            totalCount: currentQuestions.length,
-            timeUsed: timeUsed,
-            stats: stats,
-            wrongIds: wrongIds
-        })
-    })
-    .then(response => {
-        console.log('[EXAM] 后端响应:', response.status);
-        return response.json();
-    })
-    .then(result => {
-        console.log('[EXAM] 后端返回:', result);
-        console.log('[EXAM] 准备显示结果页面');
-        // 显示详细结果
-        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
-    })
-    .catch(e => {
-        console.error('[EXAM] 保存考试记录失败:', e);
-        // 即使保存失败也显示结果
+    // 先保存答题记录（answer_records）
+    console.log('[EXAM] 开始保存答题记录...');
+    const savePromises = currentQuestions.map(q => {
+        const userAnswer = examAnswers[q.id];
+        let isCorrect = false;
+        if (q.type === '判断题') {
+            const judgeMap = { 'A': '正确', 'B': '错误' };
+            isCorrect = (judgeMap[userAnswer] || '') === q.answer;
+        } else {
+            isCorrect = userAnswer === q.answer;
+        }
+        return fetch('/api/save_answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                questionId: q.id,
+                questionType: q.type,
+                userAnswer: q.type === '判断题' ? (examAnswers[q.id] === 'A' ? '正确' : '错误') : examAnswers[q.id],
+                correctAnswer: q.answer,
+                isCorrect: isCorrect
+            })
+        });
+    });
+    
+    Promise.all(savePromises).then(() => {
+        console.log('[EXAM] ✅ 答题记录已保存');
+        // 保存考试记录
+        fetch('/api/save_exam', {
+            credentials: 'include',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                score: parseFloat(score),
+                correctCount: correctCount,
+                totalCount: currentQuestions.length,
+                timeUsed: timeUsed,
+                stats: stats,
+                wrongIds: wrongIds
+            })
+        }).then(r => r.json()).then(result => {
+            console.log('[EXAM] 后端返回:', result);
+            showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+        });
+    }).catch(e => {
+        console.error('[EXAM] 保存答题记录失败:', e);
         showExamResultsWithDetails(score, correctCount, timeUsed, stats);
     });
 }

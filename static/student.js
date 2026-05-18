@@ -901,7 +901,11 @@ function submitExam() {
     
     console.log('[EXAM] 计算完成 - 分数:', score, '正确数:', correctCount, '用时:', timeUsed, '秒');
     
-    // 保存到后端
+    // ⚡️ 先显示成绩（不等待后端响应）
+    showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+    
+    // 异步保存到后端（不阻塞用户查看成绩）
+    console.log('[EXAM] 开始异步保存考试记录...');
     fetch('/api/save_exam', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -920,20 +924,15 @@ function submitExam() {
     })
     .then(result => {
         console.log('[EXAM] 后端返回:', result);
-        console.log('[EXAM] 准备显示结果页面');
-        
-        // 显示考试结果
-        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
-        
-        // 提示用户返回首页查看统计
         if (result.success) {
-            console.log('[EXAM] ✅ 考试记录已保存，返回首页可查看统计');
+            console.log('[EXAM] ✅ 考试记录已保存');
+        } else {
+            console.warn('[EXAM] ⚠️ 保存失败:', result.message);
         }
     })
     .catch(e => {
-        console.error('[EXAM] 保存考试记录失败:', e);
-        // 即使保存失败也显示结果
-        showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+        console.error('[EXAM] ❌ 保存考试记录失败:', e);
+        // 不显示错误提示，避免影响用户体验
     });
 }
 

@@ -39,7 +39,9 @@ class DatabaseAdapter:
         else:
             # PostgreSQL 使用 %s，SQLite 使用 ?
             if self.use_postgres:
-                self.cursor.execute(query, params)
+                # 将 ? 转换为 %s
+                query_pg = query.replace('?', '%s')
+                self.cursor.execute(query_pg, params)
             else:
                 # 将 %s 转换为 ?
                 query_sqlite = query.replace('%s', '?')

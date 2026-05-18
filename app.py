@@ -72,22 +72,25 @@ def debug_db():
     try:
         from db_adapter import USE_POSTGRES
         db = get_db()
-        db.execute('SELECT COUNT(*) FROM users')
+        db.execute('SELECT COUNT(*) as count FROM users')
         count = db.fetchone()
-        db.execute('SELECT COUNT(*) FROM exam_records')
+        db.execute('SELECT COUNT(*) as count FROM exam_records')
         exam_count = db.fetchone()
-        db.execute('SELECT COUNT(*) FROM answer_records')
+        db.execute('SELECT COUNT(*) as count FROM answer_records')
         answer_count = db.fetchone()
         db.close()
         return jsonify({
             'success': True,
             'database': 'PostgreSQL' if USE_POSTGRES else 'SQLite',
-            'user_count': count[0] if count else 0,
-            'exam_count': exam_count[0] if exam_count else 0,
-            'answer_count': answer_count[0] if answer_count else 0,
+            'user_count': count.get('count', 0) if count else 0,
+            'exam_count': exam_count.get('count', 0) if exam_count else 0,
+            'answer_count': answer_count.get('count', 0) if answer_count else 0,
             'status': 'connected'
         })
     except Exception as e:
+        print(f'[DEBUG] 错误：{e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e),
@@ -370,22 +373,22 @@ def api_student_stats():
         # 考试次数
         db.execute('SELECT COUNT(*) as exam_count FROM exam_records WHERE user_id = ?', (user_id,))
         exam_count_row = db.fetchone()
-        exam_count = exam_count_row['exam_count'] if exam_count_row else 0
+        exam_count = exam_count_row.get('exam_count', 0) if exam_count_row else 0
         
         # 刷题次数
         db.execute('SELECT COUNT(*) as practice_count FROM practice_records WHERE user_id = ?', (user_id,))
         practice_count_row = db.fetchone()
-        practice_count = practice_count_row['practice_count'] if practice_count_row else 0
+        practice_count = practice_count_row.get('practice_count', 0) if practice_count_row else 0
         
         # 错题数
         db.execute('SELECT COUNT(DISTINCT question_id) as wrong_count FROM wrong_questions WHERE user_id = ?', (user_id,))
         wrong_count_row = db.fetchone()
-        wrong_count = wrong_count_row['wrong_count'] if wrong_count_row else 0
+        wrong_count = wrong_count_row.get('wrong_count', 0) if wrong_count_row else 0
         
         # 收藏数
         db.execute('SELECT COUNT(DISTINCT question_id) as favorite_count FROM favorite_questions WHERE user_id = ?', (user_id,))
         favorite_count_row = db.fetchone()
-        favorite_count = favorite_count_row['favorite_count'] if favorite_count_row else 0
+        favorite_count = favorite_count_row.get('favorite_count', 0) if favorite_count_row else 0
         
         db.close()
         

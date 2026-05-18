@@ -69,7 +69,8 @@ class DatabaseAdapter:
                     return dict(zip(columns, result))
                 # 如果没有列名，返回原始 tuple
                 return result
-        return None
+        # 返回空 dict 而不是 None，避免访问时报 KeyError
+        return {}
     
     def fetchall(self):
         """获取所有结果"""

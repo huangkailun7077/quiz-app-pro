@@ -22,6 +22,21 @@ from urllib.parse import urlparse
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'xiaoling_quiz_system_2026_secret_key')
 
+# Session 配置 - 支持 HTTPS 环境（Render）
+# 自动检测是否为 HTTPS 环境
+if os.environ.get('RENDER_EXTERNAL_URL'):
+    # Render 环境：启用安全 session
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+else:
+    # 本地开发：不限制
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 1 天
+
 # 禁止缓存静态资源和页面
 @app.after_request
 def add_no_cache_headers(response):

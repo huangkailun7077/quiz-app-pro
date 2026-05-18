@@ -108,56 +108,63 @@ def index():
 # 登录
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    username = data.get('username', '').strip()
-    role = data.get('role', 'student')
-    grid = data.get('grid', '').strip()
-    
-    if not username:
-        return jsonify({'success': False, 'message': '请输入用户名'})
-    
-    # 老师账号检查：必须是 hkl7077 或在授权列表中
-    if role == 'teacher':
-        if username != 'hkl7077':
-            db = get_db()
-            db.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
-            auth = db.fetchone()
-            db.close()
-            
-            if not auth:
-                return jsonify({'success': False, 'message': '您没有老师权限，请联系管理员授权'})
-    
-    db = get_db()
-    
-    # 查找或创建用户
-    db.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = db.fetchone()
-    
-    if not user:
-        # 创建新用户
-        created_at = datetime.now().isoformat()
-        db.execute('INSERT INTO users (username, grid, role, created_at) VALUES (?, ?, ?, ?)',
-                 (username, grid, role, created_at))
-        db.commit()
-        user_id = db.lastrowid()
-    else:
-        user_id = user['id']
-        # 更新角色和网格（如果是老师登录或网格为空）
-        if role == 'teacher' and user['role'] != 'teacher':
-            db.execute('UPDATE users SET role = ?, grid = ? WHERE id = ?', ('teacher', grid, user_id))
+    try:
+        data = request.json
+        username = data.get('username', '').strip()
+        role = data.get('role', 'student')
+        grid = data.get('grid', '').strip()
+        
+        if not username:
+            return jsonify({'success': False, 'message': '请输入用户名'})
+        
+        # 老师账号检查：必须是 hkl7077 或在授权列表中
+        if role == 'teacher':
+            if username != 'hkl7077':
+                db = get_db()
+                db.execute('SELECT * FROM teacher_auth WHERE username = ?', (username,))
+                auth = db.fetchone()
+                db.close()
+                
+                if not auth:
+                    return jsonify({'success': False, 'message': '您没有老师权限，请联系管理员授权'})
+        
+        db = get_db()
+        
+        # 查找或创建用户
+        db.execute('SELECT * FROM users WHERE username = ?', (username,))
+        user = db.fetchone()
+        
+        if not user:
+            # 创建新用户
+            created_at = datetime.now().isoformat()
+            db.execute('INSERT INTO users (username, grid, role, created_at) VALUES (?, ?, ?, ?)',
+                     (username, grid, role, created_at))
             db.commit()
-        elif not user['grid'] and grid:
-            db.execute('UPDATE users SET grid = ? WHERE id = ?', (grid, user_id))
-            db.commit()
+            user_id = db.lastrowid()
+        else:
+            user_id = user['id']
+            # 更新角色和网格（如果是老师登录或网格为空）
+            if role == 'teacher' and user['role'] != 'teacher':
+                db.execute('UPDATE users SET role = ?, grid = ? WHERE id = ?', ('teacher', grid, user_id))
+                db.commit()
+            elif not user.get('grid') and grid:
+                db.execute('UPDATE users SET grid = ? WHERE id = ?', (grid, user_id))
+                db.commit()
+        
+        db.close()
+        
+        session['user_id'] = user_id
+        session['username'] = username
+        session['role'] = role
+        session['grid'] = grid
+        
+        return jsonify({'success': True, 'message': '登录成功'})
     
-    db.close()
-    
-    session['user_id'] = user_id
-    session['username'] = username
-    session['role'] = role
-    session['grid'] = grid
-    
-    return jsonify({'success': True, 'message': '登录成功'})
+    except Exception as e:
+        print(f'❌ 登录错误：{e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'登录失败：{str(e)}'}), 500
 
 # 登出
 @app.route('/logout')

@@ -34,18 +34,25 @@ class DatabaseAdapter:
     
     def execute(self, query, params=None):
         """执行 SQL 查询"""
-        if params is None:
-            self.cursor.execute(query)
-        else:
-            # PostgreSQL 使用 %s，SQLite 使用 ?
-            if self.use_postgres:
-                # 将 ? 转换为 %s
-                query_pg = query.replace('?', '%s')
-                self.cursor.execute(query_pg, params)
+        try:
+            if params is None:
+                self.cursor.execute(query)
             else:
-                # 将 %s 转换为 ?
-                query_sqlite = query.replace('%s', '?')
-                self.cursor.execute(query_sqlite, params)
+                # PostgreSQL 使用 %s，SQLite 使用 ?
+                if self.use_postgres:
+                    # 将 ? 转换为 %s
+                    query_pg = query.replace('?', '%s')
+                    self.cursor.execute(query_pg, params)
+                else:
+                    # 将 %s 转换为 ?
+                    query_sqlite = query.replace('%s', '?')
+                    self.cursor.execute(query_sqlite, params)
+        except Exception as e:
+            print(f'❌ SQL 执行错误：{e}')
+            print(f'   查询：{query}')
+            print(f'   参数：{params}')
+            print(f'   数据库类型：{"PostgreSQL" if self.use_postgres else "SQLite"}')
+            raise
         return self
     
     def fetchone(self):

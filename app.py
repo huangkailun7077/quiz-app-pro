@@ -51,6 +51,28 @@ def serve_uploads(filename):
 def access_guide():
     return render_template('access.html')
 
+# 调试端点 - 检查数据库状态
+@app.route('/debug/db')
+def debug_db():
+    try:
+        from db_adapter import USE_POSTGRES
+        db = get_db()
+        db.execute('SELECT COUNT(*) FROM users')
+        count = db.fetchone()
+        db.close()
+        return jsonify({
+            'success': True,
+            'database': 'PostgreSQL' if USE_POSTGRES else 'SQLite',
+            'user_count': count[0] if count else 0,
+            'status': 'connected'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'database': 'unknown'
+        }), 500
+
 
 # 加载题库
 def load_questions():

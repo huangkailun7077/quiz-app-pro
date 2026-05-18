@@ -252,17 +252,23 @@ def api_save_exam():
         
         # 错题加入错题本
         for qid in data['wrongIds']:
-            if db.use_postgres:
-                db.execute('''
-                    INSERT INTO wrong_questions (user_id, question_id, created_at)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT (user_id, question_id) DO NOTHING
-                ''', (user_id, qid, datetime.now().isoformat()))
-            else:
-                db.execute('''
-                    INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
-                    VALUES (?, ?, ?)
-                ''', (user_id, qid, datetime.now().isoformat()))
+            try:
+                if db.use_postgres:
+                    # PostgreSQL：先检查是否存在
+                    db.execute('SELECT id FROM wrong_questions WHERE user_id = ? AND question_id = ?', (user_id, qid))
+                    if not db.fetchone():
+                        db.execute('''
+                            INSERT INTO wrong_questions (user_id, question_id, created_at)
+                            VALUES (?, ?, ?)
+                        ''', (user_id, qid, datetime.now().isoformat()))
+                else:
+                    db.execute('''
+                        INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
+                        VALUES (?, ?, ?)
+                    ''', (user_id, qid, datetime.now().isoformat()))
+            except Exception as e:
+                print(f'[EXAM] 加入错题本失败 (qid={qid}): {e}')
+                # 继续处理其他错题，不因单个失败而中断
         
         db.commit()
         db.close()
@@ -362,24 +368,24 @@ def api_student_stats():
         answer_stats = db.fetchone()
         
         # 考试次数
-        db.execute('SELECT COUNT(*) FROM exam_records WHERE user_id = ?', (user_id,))
+        db.execute('SELECT COUNT(*) as exam_count FROM exam_records WHERE user_id = ?', (user_id,))
         exam_count_row = db.fetchone()
-        exam_count = exam_count_row[0] if exam_count_row else 0
+        exam_count = exam_count_row['exam_count'] if exam_count_row else 0
         
         # 刷题次数
-        db.execute('SELECT COUNT(*) FROM practice_records WHERE user_id = ?', (user_id,))
+        db.execute('SELECT COUNT(*) as practice_count FROM practice_records WHERE user_id = ?', (user_id,))
         practice_count_row = db.fetchone()
-        practice_count = practice_count_row[0] if practice_count_row else 0
+        practice_count = practice_count_row['practice_count'] if practice_count_row else 0
         
         # 错题数
-        db.execute('SELECT COUNT(DISTINCT question_id) FROM wrong_questions WHERE user_id = ?', (user_id,))
+        db.execute('SELECT COUNT(DISTINCT question_id) as wrong_count FROM wrong_questions WHERE user_id = ?', (user_id,))
         wrong_count_row = db.fetchone()
-        wrong_count = wrong_count_row[0] if wrong_count_row else 0
+        wrong_count = wrong_count_row['wrong_count'] if wrong_count_row else 0
         
         # 收藏数
-        db.execute('SELECT COUNT(DISTINCT question_id) FROM favorite_questions WHERE user_id = ?', (user_id,))
+        db.execute('SELECT COUNT(DISTINCT question_id) as favorite_count FROM favorite_questions WHERE user_id = ?', (user_id,))
         favorite_count_row = db.fetchone()
-        favorite_count = favorite_count_row[0] if favorite_count_row else 0
+        favorite_count = favorite_count_row['favorite_count'] if favorite_count_row else 0
         
         db.close()
         

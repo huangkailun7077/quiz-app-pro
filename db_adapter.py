@@ -67,8 +67,9 @@ class DatabaseAdapter:
                 if self.cursor.description:
                     columns = [desc[0] for desc in self.cursor.description]
                     return dict(zip(columns, result))
+                # 如果没有列名，返回原始 tuple
                 return result
-        return result
+        return None
     
     def fetchall(self):
         """获取所有结果"""
@@ -83,7 +84,7 @@ class DatabaseAdapter:
                     columns = [desc[0] for desc in self.cursor.description]
                     return [dict(zip(columns, row)) for row in results]
                 return results
-        return results
+        return []
     
     def commit(self):
         """提交事务"""

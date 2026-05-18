@@ -967,19 +967,29 @@ function submitExam() {
     })
     .then(response => {
         console.log('[EXAM] 后端响应:', response.status);
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
         return response.json();
     })
     .then(result => {
         console.log('[EXAM] 后端返回:', result);
         if (result.success) {
             console.log('[EXAM] ✅ 考试记录已保存');
+            // 显示保存成功提示（不干扰用户）
+            const saveStatus = document.createElement('div');
+            saveStatus.textContent = '✅ 成绩已保存';
+            saveStatus.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#4CAF50;color:white;padding:15px 30px;border-radius:10px;font-size:1em;font-weight:bold;box-shadow:0 5px 20px rgba(0,0,0,0.3);z-index:9999;animation:slideIn 0.3s ease;';
+            document.body.appendChild(saveStatus);
+            setTimeout(() => saveStatus.remove(), 3000);
         } else {
             console.warn('[EXAM] ⚠️ 保存失败:', result.message);
+            alert('⚠️ 成绩保存失败：' + result.message + '\n\n请截图联系管理员');
         }
     })
     .catch(e => {
         console.error('[EXAM] ❌ 保存考试记录失败:', e);
-        // 不显示错误提示，避免影响用户体验
+        alert('⚠️ 网络错误，成绩可能未保存\n\n错误：' + e.message + '\n\n请截图联系管理员');
     });
 }
 

@@ -58,17 +58,31 @@ class DatabaseAdapter:
     def fetchone(self):
         """获取一行结果"""
         result = self.cursor.fetchone()
-        if result and not self.use_postgres:
-            # SQLite Row 转 dict
-            return dict(result)
+        if result:
+            if not self.use_postgres:
+                # SQLite Row 转 dict
+                return dict(result)
+            else:
+                # PostgreSQL tuple 转 dict（需要列名）
+                if self.cursor.description:
+                    columns = [desc[0] for desc in self.cursor.description]
+                    return dict(zip(columns, result))
+                return result
         return result
     
     def fetchall(self):
         """获取所有结果"""
         results = self.cursor.fetchall()
-        if not self.use_postgres:
-            # SQLite Row 转 list of dict
-            return [dict(row) for row in results]
+        if results:
+            if not self.use_postgres:
+                # SQLite Row 转 list of dict
+                return [dict(row) for row in results]
+            else:
+                # PostgreSQL tuple 转 list of dict
+                if self.cursor.description:
+                    columns = [desc[0] for desc in self.cursor.description]
+                    return [dict(zip(columns, row)) for row in results]
+                return results
         return results
     
     def commit(self):

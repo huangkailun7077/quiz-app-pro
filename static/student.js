@@ -24,9 +24,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 加载用户数据
 async function loadUserData() {
+    console.log('[USER] loadUserData 开始执行');
+    
     try {
         const response = await fetch('/api/student/stats');
+        console.log('[USER] API 响应状态:', response.status);
+        
         const result = await response.json();
+        console.log('[USER] API 返回数据:', result);
         
         if (result.success) {
             const data = result.data;
@@ -34,9 +39,12 @@ async function loadUserData() {
             document.getElementById('statAnswers').textContent = data.totalAnswers;
             document.getElementById('statRate').textContent = data.correctRate + '%';
             document.getElementById('statExams').textContent = data.examCount;
+            console.log('[USER] 数据已更新 - 答题数:', data.totalAnswers, '正确率:', data.correctRate, '考试次数:', data.examCount);
+        } else {
+            console.error('[USER] API 返回失败:', result.message);
         }
     } catch (e) {
-        console.error('加载用户数据失败:', e);
+        console.error('[USER] 加载用户数据失败:', e);
     }
 }
 
@@ -68,6 +76,8 @@ function showPage(pageId) {
 }
 
 function goHome() {
+    console.log('[HOME] goHome 被调用');
+    
     // 清理考试计时器
     if (examTimerInterval) {
         clearInterval(examTimerInterval);
@@ -79,6 +89,9 @@ function goHome() {
     document.getElementById('submitExamBtn').style.display = 'none';
     
     showPage('homePage');
+    
+    // 重新加载用户数据（刷新统计）
+    console.log('[HOME] 调用 loadUserData 刷新数据');
     loadUserData();
 }
 
@@ -908,8 +921,14 @@ function submitExam() {
     .then(result => {
         console.log('[EXAM] 后端返回:', result);
         console.log('[EXAM] 准备显示结果页面');
-        // 显示详细结果
+        
+        // 显示考试结果
         showExamResultsWithDetails(score, correctCount, timeUsed, stats);
+        
+        // 提示用户返回首页查看统计
+        if (result.success) {
+            console.log('[EXAM] ✅ 考试记录已保存，返回首页可查看统计');
+        }
     })
     .catch(e => {
         console.error('[EXAM] 保存考试记录失败:', e);

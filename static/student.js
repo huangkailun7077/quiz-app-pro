@@ -629,6 +629,7 @@ async function checkAnswer() {
             await fetch('/api/save_answer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     questionId: q.id,
                     questionType: q.type,
@@ -655,6 +656,7 @@ async function checkAnswer() {
         await fetch('/api/save_answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
                 questionId: q.id,
                 questionType: q.type,
@@ -769,6 +771,7 @@ function prevQuestion() {
 async function savePracticeRecord() {
     try {
         await fetch('/api/save_practice', {
+            credentials: 'include',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -890,6 +893,7 @@ function submitExam() {
     
     // 保存到后端
     fetch('/api/save_exam', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

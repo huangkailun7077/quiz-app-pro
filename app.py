@@ -225,55 +225,84 @@ def api_save_answer():
 # 保存考试记录
 @app.route('/api/save_exam', methods=['POST'])
 def api_save_exam():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '请先登录'})
-    
-    data = request.json
-    user_id = session['user_id']
-    
-    db = get_db()
-    
-    # 保存考试记录
-    db.execute('''
-        INSERT INTO exam_records (user_id, score, correct_count, total_count, time_used, stats, wrong_ids, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, data['score'], data['correctCount'], data['totalCount'], 
-          data['timeUsed'], json.dumps(data['stats']), json.dumps(data['wrongIds']), 
-          datetime.now().isoformat()))
-    
-    # 错题加入错题本
-    for qid in data['wrongIds']:
+    try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'message': '请先登录'})
+        
+        data = request.json
+        user_id = session['user_id']
+        
+        print(f'[EXAM] 保存考试记录 - user_id={user_id}, score={data.get("score")}')
+        
+        db = get_db()
+        
+        # 保存考试记录
         db.execute('''
-            INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
-            VALUES (?, ?, ?)
-        ''', (user_id, qid, datetime.now().isoformat()))
+            INSERT INTO exam_records (user_id, score, correct_count, total_count, time_used, stats, wrong_ids, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, data['score'], data['correctCount'], data['totalCount'], 
+              data['timeUsed'], json.dumps(data['stats']), json.dumps(data['wrongIds']), 
+              datetime.now().isoformat()))
+        
+        # 错题加入错题本
+        for qid in data['wrongIds']:
+            if db.use_postgres:
+                db.execute('''
+                    INSERT INTO wrong_questions (user_id, question_id, created_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT (user_id, question_id) DO NOTHING
+                ''', (user_id, qid, datetime.now().isoformat()))
+            else:
+                db.execute('''
+                    INSERT OR IGNORE INTO wrong_questions (user_id, question_id, created_at)
+                    VALUES (?, ?, ?)
+                ''', (user_id, qid, datetime.now().isoformat()))
+        
+        db.commit()
+        db.close()
+        
+        print(f'[EXAM] ✅ 保存成功')
+        
+        return jsonify({'success': True})
     
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True})
+    except Exception as e:
+        print(f'[EXAM] ❌ 保存失败：{e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'保存失败：{str(e)}'}), 500
 
 # 保存刷题记录
 @app.route('/api/save_practice', methods=['POST'])
 def api_save_practice():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '请先登录'})
+    try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'message': '请先登录'})
+        
+        data = request.json
+        user_id = session['user_id']
+        
+        print(f'[PRACTICE] 保存刷题记录 - user_id={user_id}, mode={data.get("mode")}')
+        
+        db = get_db()
+        
+        db.execute('''
+            INSERT INTO practice_records (user_id, mode, question_type, question_count, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, data['mode'], data['questionType'], data['questionCount'], 
+              datetime.now().isoformat()))
+        
+        db.commit()
+        db.close()
+        
+        print(f'[PRACTICE] ✅ 保存成功')
+        
+        return jsonify({'success': True})
     
-    data = request.json
-    user_id = session['user_id']
-    
-    db = get_db()
-    
-    db.execute('''
-        INSERT INTO practice_records (user_id, mode, question_type, question_count, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (user_id, data['mode'], data['questionType'], data['questionCount'], 
-          datetime.now().isoformat()))
-    
-    db.commit()
-    db.close()
-    
-    return jsonify({'success': True})
+    except Exception as e:
+        print(f'[PRACTICE] ❌ 保存失败：{e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'保存失败：{str(e)}'}), 500
 
 # 收藏/取消收藏
 @app.route('/api/toggle_favorite', methods=['POST'])
@@ -312,53 +341,63 @@ def api_toggle_favorite():
 # 获取学员统计数据
 @app.route('/api/student/stats')
 def api_student_stats():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '请先登录'})
-    
-    user_id = session['user_id']
-    db = get_db()
-    
-    # 答题总数和正确率
-    db.execute('''
-        SELECT COUNT(*) as total, SUM(is_correct) as correct
-        FROM answer_records WHERE user_id = ?
-    ''', (user_id,))
-    answer_stats = db.fetchone()
-    
-    # 考试次数
-    db.execute('SELECT COUNT(*) FROM exam_records WHERE user_id = ?', (user_id,))
-    exam_count = db.fetchone()[0]
-    
-    # 刷题次数
-    db.execute('SELECT COUNT(*) FROM practice_records WHERE user_id = ?', (user_id,))
-    practice_count = db.fetchone()[0]
-    
-    # 错题数
-    db.execute('SELECT COUNT(DISTINCT question_id) FROM wrong_questions WHERE user_id = ?', (user_id,))
-    wrong_count = db.fetchone()[0]
-    
-    # 收藏数
-    db.execute('SELECT COUNT(DISTINCT question_id) FROM favorite_questions WHERE user_id = ?', (user_id,))
-    favorite_count = db.fetchone()[0]
-    
-    db.close()
-    
-    total = answer_stats['total'] or 0
-    correct = answer_stats['correct'] or 0
-    correct_rate = round((correct / total * 100), 1) if total > 0 else 0
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'totalAnswers': total,
-            'correctAnswers': correct,
-            'correctRate': correct_rate,
-            'examCount': exam_count,
-            'practiceCount': practice_count,
-            'wrongCount': wrong_count,
-            'favoriteCount': favorite_count
-        }
-    })
+    try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'message': '请先登录'})
+        
+        user_id = session['user_id']
+        db = get_db()
+        
+        # 答题总数和正确率
+        db.execute('''
+            SELECT COUNT(*) as total, SUM(is_correct) as correct
+            FROM answer_records WHERE user_id = ?
+        ''', (user_id,))
+        answer_stats = db.fetchone()
+        
+        # 考试次数
+        db.execute('SELECT COUNT(*) FROM exam_records WHERE user_id = ?', (user_id,))
+        exam_count_row = db.fetchone()
+        exam_count = exam_count_row[0] if exam_count_row else 0
+        
+        # 刷题次数
+        db.execute('SELECT COUNT(*) FROM practice_records WHERE user_id = ?', (user_id,))
+        practice_count_row = db.fetchone()
+        practice_count = practice_count_row[0] if practice_count_row else 0
+        
+        # 错题数
+        db.execute('SELECT COUNT(DISTINCT question_id) FROM wrong_questions WHERE user_id = ?', (user_id,))
+        wrong_count_row = db.fetchone()
+        wrong_count = wrong_count_row[0] if wrong_count_row else 0
+        
+        # 收藏数
+        db.execute('SELECT COUNT(DISTINCT question_id) FROM favorite_questions WHERE user_id = ?', (user_id,))
+        favorite_count_row = db.fetchone()
+        favorite_count = favorite_count_row[0] if favorite_count_row else 0
+        
+        db.close()
+        
+        total = answer_stats['total'] or 0
+        correct = answer_stats['correct'] or 0
+        correct_rate = round((correct / total * 100), 1) if total > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'totalAnswers': total,
+                'correctAnswers': correct,
+                'correctRate': correct_rate,
+                'examCount': exam_count,
+                'practiceCount': practice_count,
+                'wrongCount': wrong_count,
+                'favoriteCount': favorite_count
+            }
+        })
+    except Exception as e:
+        print(f'[STATS] ❌ 查询失败：{e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'查询失败：{str(e)}'}), 500
 
 # 获取学员考试记录
 @app.route('/api/student/exams')

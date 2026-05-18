@@ -892,7 +892,6 @@ function submitExam() {
     fetch('/api/save_exam', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
             score: parseFloat(score),
             correctCount: correctCount,

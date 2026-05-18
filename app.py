@@ -602,7 +602,7 @@ def api_teacher_student_detail(student_id):
     c = conn.cursor()
     
     # 学员基本信息
-    c.execute('SELECT * FROM users WHERE id = ? AND role = ?', (student_id, 'student'))
+    c.execute('SELECT * FROM users WHERE id = ? AND role = "student"', (student_id,))
     student = c.fetchone()
     
     if not student:
@@ -653,8 +653,8 @@ def api_teacher_student_detail(student_id):
         SELECT AVG(e.score) as grid_avg
         FROM exam_records e
         JOIN users u ON e.user_id = u.id
-        WHERE u.grid = ? AND u.role = ?
-    ''', (grid, 'student'))
+        WHERE u.grid = ? AND u.role = "student"
+    ''', (grid,))
     grid_avg_result = c.fetchone()
     grid_avg = round(grid_avg_result['grid_avg'], 1) if grid_avg_result and grid_avg_result['grid_avg'] else 0
     
